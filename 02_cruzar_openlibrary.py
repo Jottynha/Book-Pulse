@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-03_cruzar_openlibrary.py
+02_cruzar_openlibrary.py
 
 Primeira etapa do cruzamento externo:
     Goodreads -> Open Library

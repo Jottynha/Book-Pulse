@@ -790,19 +790,19 @@ def main() -> None:
 
     if not ARQUIVO_BOOKS_OPENLIBRARY.exists():
         raise FileNotFoundError(
-            f"Execute primeiro o 03_cruzar_openlibrary.py.\n"
+            f"Execute primeiro o 02_cruzar_openlibrary.py.\n"
             f"Arquivo ausente: {ARQUIVO_BOOKS_OPENLIBRARY}"
         )
 
     if not ARQUIVO_BOOKS_GOOGLE.exists():
         raise FileNotFoundError(
-            f"Execute primeiro o 04_cruzar_google_books.py.\n"
+            f"Execute primeiro o 03_cruzar_google_books.py.\n"
             f"Arquivo ausente: {ARQUIVO_BOOKS_GOOGLE}"
         )
 
     if not ARQUIVO_REVIEWS.exists():
         raise FileNotFoundError(
-            f"Execute primeiro o 03_cruzar_openlibrary.py e o 04_cruzar_google_books.py.\n"
+            f"Execute primeiro o 02_cruzar_openlibrary.py e o 03_cruzar_google_books.py.\n"
             f"Arquivo ausente: {ARQUIVO_REVIEWS}"
         )
 

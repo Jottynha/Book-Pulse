@@ -97,61 +97,57 @@ Cada livro recebe `match_status` em `MUITO_ALTO`, `ALTO`, `MEDIO`, `BAIXO`,
 01_amostra_reviews.py
     -> goodreads_reviews_100k.parquet
     -> goodreads_books_100k.parquet
-02_cruzar_reviews.py
-    -> associação entre reviews e livros por book_id
-03_cruzar_openlibrary.py
+02_cruzar_openlibrary.py
     -> goodreads_books_openlibrary_100k.parquet
-04_cruzar_google_books.py
+03_cruzar_google_books.py
     -> goodreads_books_google_books_100k.parquet
-05_validar_matches.py
+04_validar_matches.py
     -> goodreads_books_validated_100k.parquet
     -> goodreads_reviews_validated_100k.parquet
     -> relatório de qualidade e fila de revisão
-06_eda_amostra.py
-    -> processed/eda_amostra/
+05_eda_amostra.py
     -> processed/eda_amostra_confiante/
 ```
 
-O `02_cruzar_reviews.py` usa `left join` por `book_id` para manter as resenhas
-mesmo quando algum metadado não estiver disponível. As etapas externas trabalham
-somente com os livros únicos da amostra.
+As etapas externas trabalham somente com os livros únicos da amostra. A análise
+principal usa exclusivamente o resultado validado e os matches confiáveis.
 
 > **Nota:** o sufixo `100k` é histórico e foi mantido para não quebrar o pipeline.
 > A execução documentada contém 10.000 reviews, não 100.000.
 
 ## EDA inicial da amostra
 
-O script `06_eda_amostra.py` gera relatório Markdown, tabelas CSV e gráficos PNG
-com perfil da amostra, usuários, notas, tamanho das reviews, votos, comentários,
-livros mais resenhados, idiomas, páginas, formatos e gêneros aproximados.
+O script `05_eda_amostra.py` gera uma base consolidada, tabelas agregadas,
+relatório Markdown e gráficos PNG com perfil da amostra, usuários, notas,
+tamanho das reviews, votos, comentários, livros, metadados e gêneros aproximados.
 
 Por padrão, a análise principal usa somente matches confiáveis:
 
 ```bash
-python3 06_eda_amostra.py --only-confident
+python3 05_eda_amostra.py --only-confident
 ```
 
-Esse comando grava em `processed/eda_amostra_confiante/`. Para gerar também o
-recorte completo, usado como comparação e auditoria, execute:
-
-```bash
-python3 06_eda_amostra.py
-```
+Esse comando grava em `processed/eda_amostra_confiante/`, que é a única saída
+analítica mantida no escopo final.
 
 As `popular_shelves` são rótulos sociais e podem se sobrepor. O script classifica
 cada shelf como `genre_proxy`, `status_leitura`, `formato` ou `outro`. Apenas
-`genre_proxy` entra em `top_generos_proxy.csv`; portanto, o resultado é um
+`genre_proxy` entra em `analise_generos.csv`; portanto, o resultado é um
 indicador exploratório, não uma classificação editorial definitiva.
 
-Principais artefatos da EDA:
+Ratings iguais a zero são preservados para medir ausência de avaliação, mas não
+entram nas médias e medianas analíticas. Essas métricas usam somente ratings de 1
+a 5 e cada tabela agregada informa `notas_validas`; médias ausentes significam
+que aquele grupo não possui nenhuma nota válida.
 
-- `resumo_geral.csv`: indicadores gerais;
-- `distribuicao_notas.csv`: frequência e percentual das notas;
-- `top_usuarios.csv` e `top_livros.csv`: concentrações da amostra;
-- `top_shelves.csv`: shelves com sua classificação;
-- `top_generos_proxy.csv`: somente shelves usadas como proxy de gênero;
-- `shelves_por_tipo.csv`: distribuição das categorias de shelf;
-- `relatorio_eda.md` e os gráficos `01_` a `05_`.
+Principais artefatos da EDA, reduzidos às tabelas necessárias para a análise:
+
+- `base_eda_consolidada.parquet`: uma linha por review com variáveis do livro;
+- `perfil_eda.csv`: indicadores essenciais da amostra;
+- `analise_livros.csv`: uma linha por livro, com métricas agregadas;
+- `analise_usuarios.csv`: uma linha por usuário, com métricas agregadas;
+- `analise_generos.csv`: gêneros proxy com livros, reviews e notas;
+- `relatorio_eda.md` e os gráficos `01_` a `04_`.
 
 As relações observadas na EDA são descritivas e não demonstram causalidade.
 
@@ -165,7 +161,6 @@ processed/
 ├── google_books_cache_batches.json
 ├── matches_para_revisao.csv
 ├── relatorio_qualidade_matches.*
-├── eda_amostra/
 └── eda_amostra_confiante/
 ```
 
@@ -174,11 +169,10 @@ processed/
 ```bash
 python3 -m pip install -r requirements.txt
 python3 01_amostra_reviews.py
-python3 02_cruzar_reviews.py
-python3 03_cruzar_openlibrary.py
-python3 04_cruzar_google_books.py
-python3 05_validar_matches.py
-python3 06_eda_amostra.py --only-confident
+python3 02_cruzar_openlibrary.py
+python3 03_cruzar_google_books.py
+python3 04_validar_matches.py
+python3 05_eda_amostra.py --only-confident
 ```
 
 Para o Google Books, configure `GOOGLE_BOOKS_API_KEY` no ambiente ou em `.env`.

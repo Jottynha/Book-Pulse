@@ -15,6 +15,17 @@ PASTA_PROCESSED = BASE_DIR / "processed"
 ARQUIVO_BOOKS = PASTA_PROCESSED / "goodreads_books_validated_100k.parquet"
 ARQUIVO_REVIEWS = PASTA_PROCESSED / "goodreads_reviews_validated_100k.parquet"
 PASTA_SAIDA = PASTA_PROCESSED / "eda_amostra"
+ARQUIVOS_LEGADOS = {
+    "resumo_geral.csv",
+    "distribuicao_notas.csv",
+    "top_usuarios.csv",
+    "top_livros.csv",
+    "top_shelves.csv",
+    "shelves_por_tipo.csv",
+    "top_generos_proxy.csv",
+    "top_generos_proxy_por_reviews.csv",
+    "05_idiomas.png",
+}
 
 STATUS_CONFIAVEIS = ["MUITO_ALTO", "ALTO", "MEDIO"]
 SHELVES_STATUS = {
@@ -122,6 +133,7 @@ def preparar_reviews(reviews: pd.DataFrame, only_confident: bool) -> pd.DataFram
         reviews = reviews[reviews["match_status"].isin(STATUS_CONFIAVEIS)].copy()
 
     reviews["rating"] = numero(reviews["rating"])
+    reviews["rating_valido"] = reviews["rating"].where(reviews["rating"].between(1, 5))
     reviews["n_votes"] = numero(reviews["n_votes"]).fillna(0)
     reviews["n_comments"] = numero(reviews["n_comments"]).fillna(0)
     reviews["review_text"] = reviews["review_text"].fillna("").astype(str)
@@ -150,6 +162,13 @@ def preparar_books(books: pd.DataFrame) -> pd.DataFrame:
 
 def salvar_csv(dataframe: pd.DataFrame, nome: str) -> None:
     dataframe.to_csv(PASTA_SAIDA / nome, index=False, encoding="utf-8")
+
+
+def limpar_saidas_legadas() -> None:
+    for nome in ARQUIVOS_LEGADOS:
+        caminho = PASTA_SAIDA / nome
+        if caminho.exists():
+            caminho.unlink()
 
 
 def classificar_shelf(shelf: str) -> str:
@@ -203,7 +222,7 @@ def escrever_grafico(figura: plt.Figure, nome: str) -> None:
     plt.close(figura)
 
 
-def gerar_graficos(reviews: pd.DataFrame, books: pd.DataFrame) -> None:
+def gerar_graficos(reviews: pd.DataFrame) -> None:
     figura, eixo = plt.subplots(figsize=(8, 5))
     reviews["rating"].value_counts().sort_index().plot.bar(ax=eixo, color="#2f6f8f")
     eixo.set_title("Distribuição das notas")
@@ -255,24 +274,108 @@ def gerar_graficos(reviews: pd.DataFrame, books: pd.DataFrame) -> None:
     eixo.set_ylabel("Nota média")
     escrever_grafico(figura, "04_volume_e_nota_por_livro.png")
 
-    language = books["language_code"].replace("", pd.NA).dropna().value_counts().head(12)
-    figura, eixo = plt.subplots(figsize=(9, 5))
-    language.sort_values().plot.barh(ax=eixo, color="#457b9d")
-    eixo.set_title("Idiomas mais frequentes dos livros")
-    eixo.set_xlabel("Número de livros")
-    eixo.set_ylabel("language_code")
-    escrever_grafico(figura, "05_idiomas.png")
-
-
-def gerar_relatorio(
+def preparar_base_consolidada(
     reviews: pd.DataFrame,
     books: pd.DataFrame,
     shelves: pd.DataFrame,
+):
+    genres = (
+        shelves[shelves["is_genre_proxy"]]
+        .groupby("book_id")["shelf"]
+        .agg(lambda values: "|".join(sorted(set(values))))
+        .rename("genres_proxy")
+    )
+    book_columns = [
+        "book_id", "title", "author_ids", "publication_year", "num_pages",
+        "language_code", "is_ebook", "average_rating", "ratings_count",
+        "text_reviews_count",
+    ]
+    base = reviews.merge(books[book_columns], on="book_id", how="left")
+    base = base.merge(genres, on="book_id", how="left")
+    base["genres_proxy"] = base["genres_proxy"].fillna("")
+    return base
+
+
+def gerar_tabelas_consolidadas(
+    base: pd.DataFrame,
+    shelves: pd.DataFrame,
+) -> None:
+    base_columns = [
+        "review_id", "user_id", "book_id", "rating", "rating_valido", "review_chars",
+        "review_words", "n_votes", "n_comments", "review_year",
+        "match_status", "title", "author_ids", "publication_year",
+        "num_pages", "language_code", "is_ebook", "average_rating",
+        "ratings_count", "text_reviews_count", "genres_proxy",
+    ]
+    base[base_columns].to_parquet(
+        PASTA_SAIDA / "base_eda_consolidada.parquet", index=False
+    )
+
+    perfil = pd.DataFrame([
+        ("reviews", len(base), "registros"),
+        ("livros_unicos", base["book_id"].nunique(), "livros"),
+        ("usuarios_unicos", base["user_id"].nunique(), "usuarios"),
+        ("nota_media_valida", round(base["rating_valido"].mean(), 4), "escala 1 a 5"),
+        ("percentual_rating_valido", round(base["rating_valido"].notna().mean() * 100, 2), "%"),
+        ("mediana_caracteres_review", base["review_chars"].median(), "caracteres"),
+        ("media_votos", round(base["n_votes"].mean(), 4), "votos por review"),
+        ("media_comentarios", round(base["n_comments"].mean(), 4), "comentarios por review"),
+        ("percentual_rating_zero", round(base["rating"].eq(0).mean() * 100, 2), "%"),
+        ("percentual_com_ano", round(base["publication_year"].notna().mean() * 100, 2), "% dos reviews"),
+        ("percentual_com_paginas", round(base["num_pages"].notna().mean() * 100, 2), "% dos reviews"),
+    ], columns=["indicador", "valor", "unidade"])
+    salvar_csv(perfil, "perfil_eda.csv")
+
+    livros = base.groupby("book_id", as_index=False).agg(
+        title=("title", "first"),
+        reviews=("review_id", "count"),
+        usuarios=("user_id", "nunique"),
+        notas_validas=("rating_valido", "count"),
+        nota_media=("rating_valido", "mean"),
+        nota_mediana=("rating_valido", "median"),
+        caracteres_medianos=("review_chars", "median"),
+        votos_medios=("n_votes", "mean"),
+        comentarios_medios=("n_comments", "mean"),
+        publication_year=("publication_year", "first"),
+        num_pages=("num_pages", "first"),
+        language_code=("language_code", "first"),
+        is_ebook=("is_ebook", "first"),
+        average_rating_goodreads=("average_rating", "first"),
+        ratings_count=("ratings_count", "first"),
+        genres_proxy=("genres_proxy", "first"),
+    )
+    salvar_csv(livros.sort_values(["reviews", "nota_media"], ascending=False), "analise_livros.csv")
+
+    usuarios = base.groupby("user_id", as_index=False).agg(
+        reviews=("review_id", "count"),
+        livros=("book_id", "nunique"),
+        notas_validas=("rating_valido", "count"),
+        nota_media=("rating_valido", "mean"),
+        caracteres_medianos=("review_chars", "median"),
+        votos_medios=("n_votes", "mean"),
+        comentarios_medios=("n_comments", "mean"),
+    )
+    salvar_csv(usuarios.sort_values("reviews", ascending=False), "analise_usuarios.csv")
+
+    genre_books = shelves[shelves["is_genre_proxy"]][["book_id", "shelf"]].drop_duplicates()
+    generos = genre_books.merge(
+        base[["book_id", "review_id", "rating_valido"]], on="book_id", how="inner"
+    ).groupby("shelf", as_index=False).agg(
+        livros=("book_id", "nunique"),
+        reviews=("review_id", "nunique"),
+        notas_validas=("rating_valido", "count"),
+        nota_media=("rating_valido", "mean"),
+        nota_mediana=("rating_valido", "median"),
+    )
+    salvar_csv(generos.sort_values("reviews", ascending=False), "analise_generos.csv")
+
+
+def gerar_relatorio(
+    base: pd.DataFrame,
+    shelves: pd.DataFrame,
     only_confident: bool,
 ) -> None:
-    total_reviews = len(reviews)
-    reviews_por_livro = reviews.groupby("book_id").size()
-    reviews_por_usuario = reviews.groupby("user_id").size()
+    total_reviews = len(base)
     genre_shelves = shelves[shelves["is_genre_proxy"]]
     shelf_type_counts = shelves["shelf_type"].value_counts()
 
@@ -284,30 +387,18 @@ def gerar_relatorio(
         "## Perfil da base",
         "",
         f"- Reviews analisadas: {total_reviews:,}",
-        f"- Livros únicos analisados: {reviews['book_id'].nunique():,}",
-        f"- Usuários únicos: {reviews['user_id'].nunique():,}",
-        f"- Média de reviews por livro: {reviews_por_livro.mean():.2f}",
-        f"- Mediana de reviews por livro: {reviews_por_livro.median():.0f}",
-        f"- Média de reviews por usuário: {reviews_por_usuario.mean():.2f}",
-        f"- Mediana de reviews por usuário: {reviews_por_usuario.median():.0f}",
+        f"- Livros únicos analisados: {base['book_id'].nunique():,}",
+        f"- Usuários únicos: {base['user_id'].nunique():,}",
+        "As tabelas consolidadas são a fonte principal para as análises seguintes.",
         "",
         "## Notas e comportamento",
         "",
-        f"- Nota média: {reviews['rating'].mean():.2f}",
-        f"- Mediana da nota: {reviews['rating'].median():.1f}",
-        f"- Percentual sem nota (`rating == 0`): {proporcao(int(reviews['rating'].eq(0).sum()), total_reviews):.2f}%",
-        f"- Média de caracteres por review: {reviews['review_chars'].mean():.1f}",
-        f"- Mediana de caracteres por review: {reviews['review_chars'].median():.0f}",
-        f"- Média de votos: {reviews['n_votes'].mean():.2f}",
-        f"- Média de comentários: {reviews['n_comments'].mean():.2f}",
-        "",
-        "## Livros e metadados",
-        "",
-        f"- Livros com ano de publicação: {proporcao(int(books['publication_year'].notna().sum()), len(books)):.2f}%",
-        f"- Livros com número de páginas: {proporcao(int(books['num_pages'].notna().sum()), len(books)):.2f}%",
-        f"- Livros marcados como ebook: {proporcao(int(books['is_ebook'].sum()), len(books)):.2f}%",
-        f"- Número mediano de páginas: {books['num_pages'].median():.0f}",
-        f"- Nota média Goodreads dos livros: {books['average_rating'].mean():.2f}",
+        f"- Nota média válida (1 a 5): {base['rating_valido'].mean():.2f}",
+        f"- Mediana da nota válida: {base['rating_valido'].median():.1f}",
+        f"- Percentual sem nota (`rating == 0`): {proporcao(int(base['rating'].eq(0).sum()), total_reviews):.2f}%",
+        f"- Mediana de caracteres por review: {base['review_chars'].median():.0f}",
+        f"- Média de votos: {base['n_votes'].mean():.2f}",
+        f"- Média de comentários: {base['n_comments'].mean():.2f}",
         "",
         "## Gêneros e shelves",
         "",
@@ -322,14 +413,12 @@ def gerar_relatorio(
         "",
         "## Artefatos",
         "",
-        "- `resumo_geral.csv`: indicadores gerais da amostra.",
-        "- `distribuicao_notas.csv`: frequência e percentual de cada nota.",
-        "- `top_usuarios.csv`: usuários com mais reviews na amostra.",
-        "- `top_livros.csv`: livros com mais reviews e nota média.",
-        "- `top_shelves.csv`: todos os rótulos, com seu tipo de classificação.",
-        "- `top_generos_proxy.csv`: somente rótulos classificados como gênero.",
-        "- `shelves_por_tipo.csv`: quantidade de shelves por categoria.",
-        "- `01_` a `05_*.png`: gráficos para inspeção inicial.",
+        "- `base_eda_consolidada.parquet`: uma linha por review com variáveis do livro.",
+        "- `perfil_eda.csv`: indicadores essenciais da amostra.",
+        "- `analise_livros.csv`: uma linha por livro, com métricas agregadas.",
+        "- `analise_usuarios.csv`: uma linha por usuário, com métricas agregadas.",
+        "- `analise_generos.csv`: gêneros proxy com livros, reviews e notas.",
+        "- `01_` a `04_*.png`: gráficos essenciais.",
         "",
         "## Perguntas para a próxima análise",
         "",
@@ -339,60 +428,6 @@ def gerar_relatorio(
         "- Quais gêneros/shelves concentram mais reviews e quais têm maior nota média?",
     ]
     (PASTA_SAIDA / "relatorio_eda.md").write_text("\n".join(linhas) + "\n", encoding="utf-8")
-    salvar_csv(pd.DataFrame([{
-        "reviews": total_reviews,
-        "livros_unicos": reviews["book_id"].nunique(),
-        "usuarios_unicos": reviews["user_id"].nunique(),
-        "nota_media": round(reviews["rating"].mean(), 4),
-        "mediana_caracteres_review": reviews["review_chars"].median(),
-        "media_votos": round(reviews["n_votes"].mean(), 4),
-        "media_comentarios": round(reviews["n_comments"].mean(), 4),
-    }]), "resumo_geral.csv")
-    salvar_csv(
-        reviews["rating"].value_counts().sort_index().rename("quantidade").rename_axis("rating").reset_index().assign(
-            percentual=lambda df: (df["quantidade"] / total_reviews * 100).round(2)
-        ),
-        "distribuicao_notas.csv",
-    )
-    salvar_csv(
-        reviews["user_id"].value_counts().head(30).rename("reviews").rename_axis("user_id").reset_index(),
-        "top_usuarios.csv",
-    )
-    top_books = reviews.groupby("book_id").agg(
-        reviews=("review_id", "count"), nota_media=("rating", "mean")
-    ).sort_values(["reviews", "nota_media"], ascending=False).head(30).reset_index()
-    salvar_csv(top_books, "top_livros.csv")
-    salvar_csv(
-        shelves.groupby(["shelf", "shelf_type"])
-        .size()
-        .sort_values(ascending=False)
-        .head(50)
-        .rename("livros")
-        .reset_index(),
-        "top_shelves.csv",
-    )
-    salvar_csv(
-        shelves.groupby("shelf_type").agg(
-            associacoes=("shelf", "size"),
-            shelves_unicas=("shelf", "nunique"),
-        ).reset_index(),
-        "shelves_por_tipo.csv",
-    )
-    salvar_csv(
-        genre_shelves["shelf"].value_counts().head(50).rename("livros").rename_axis("shelf").reset_index(),
-        "top_generos_proxy.csv",
-    )
-    genre_review_counts = (
-        reviews[["book_id"]].merge(genre_shelves[["book_id", "shelf"]], on="book_id", how="inner")
-        .groupby("shelf")
-        .size()
-        .sort_values(ascending=False)
-        .head(50)
-        .rename("reviews")
-        .rename_axis("shelf")
-        .reset_index()
-    )
-    salvar_csv(genre_review_counts, "top_generos_proxy_por_reviews.csv")
 
 
 def main() -> None:
@@ -406,11 +441,14 @@ def main() -> None:
     nome_saida = "eda_amostra_confiante" if args.only_confident else "eda_amostra"
     PASTA_SAIDA = PASTA_PROCESSED / nome_saida
     PASTA_SAIDA.mkdir(parents=True, exist_ok=True)
+    limpar_saidas_legadas()
     books = preparar_books(pd.read_parquet(ARQUIVO_BOOKS))
     reviews = preparar_reviews(pd.read_parquet(ARQUIVO_REVIEWS), args.only_confident)
     shelves = contar_shelves(books)
-    gerar_relatorio(reviews, books, shelves, args.only_confident)
-    gerar_graficos(reviews, books)
+    base = preparar_base_consolidada(reviews, books, shelves)
+    gerar_tabelas_consolidadas(base, shelves)
+    gerar_relatorio(base, shelves, args.only_confident)
+    gerar_graficos(base)
     print(f"EDA concluída: {PASTA_SAIDA}")
     print(f"Reviews analisadas: {len(reviews):,}")
     print(f"Livros analisados: {reviews['book_id'].nunique():,}")

@@ -7,28 +7,16 @@ Filtro aplicado: somente matches confiáveis.
 - Reviews analisadas: 8,033
 - Livros únicos analisados: 7,031
 - Usuários únicos: 7,350
-- Média de reviews por livro: 1.14
-- Mediana de reviews por livro: 1
-- Média de reviews por usuário: 1.09
-- Mediana de reviews por usuário: 1
+As tabelas consolidadas são a fonte principal para as análises seguintes.
 
 ## Notas e comportamento
 
-- Nota média: 3.73
-- Mediana da nota: 4.0
+- Nota média válida (1 a 5): 3.87
+- Mediana da nota válida: 4.0
 - Percentual sem nota (`rating == 0`): 3.49%
-- Média de caracteres por review: 686.7
 - Mediana de caracteres por review: 334
 - Média de votos: 1.10
 - Média de comentários: 0.24
-
-## Livros e metadados
-
-- Livros com ano de publicação: 82.69%
-- Livros com número de páginas: 84.17%
-- Livros marcados como ebook: 22.31%
-- Número mediano de páginas: 309
-- Nota média Goodreads dos livros: 3.92
 
 ## Gêneros e shelves
 
@@ -43,14 +31,12 @@ ou `outro`. Apenas `genre_proxy` é usado na tabela de gêneros; a classificaç�
 
 ## Artefatos
 
-- `resumo_geral.csv`: indicadores gerais da amostra.
-- `distribuicao_notas.csv`: frequência e percentual de cada nota.
-- `top_usuarios.csv`: usuários com mais reviews na amostra.
-- `top_livros.csv`: livros com mais reviews e nota média.
-- `top_shelves.csv`: todos os rótulos, com seu tipo de classificação.
-- `top_generos_proxy.csv`: somente rótulos classificados como gênero.
-- `shelves_por_tipo.csv`: quantidade de shelves por categoria.
-- `01_` a `05_*.png`: gráficos para inspeção inicial.
+- `base_eda_consolidada.parquet`: uma linha por review com variáveis do livro.
+- `perfil_eda.csv`: indicadores essenciais da amostra.
+- `analise_livros.csv`: uma linha por livro, com métricas agregadas.
+- `analise_usuarios.csv`: uma linha por usuário, com métricas agregadas.
+- `analise_generos.csv`: gêneros proxy com livros, reviews e notas.
+- `01_` a `04_*.png`: gráficos essenciais.
 
 ## Perguntas para a próxima análise
 

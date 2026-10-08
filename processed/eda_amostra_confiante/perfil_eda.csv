@@ -1,0 +1,12 @@
+indicador,valor,unidade
+reviews,8033.0,registros
+livros_unicos,7031.0,livros
+usuarios_unicos,7350.0,usuarios
+nota_media_valida,3.8668,escala 1 a 5
+percentual_rating_valido,96.51,%
+mediana_caracteres_review,334.0,caracteres
+media_votos,1.0992,votos por review
+media_comentarios,0.2399,comentarios por review
+percentual_rating_zero,3.49,%
+percentual_com_ano,86.11,% dos reviews
+percentual_com_paginas,90.23,% dos reviews

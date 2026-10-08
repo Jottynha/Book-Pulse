@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-04_cruzar_google_books.py
+03_cruzar_google_books.py
 
 Segunda etapa do cruzamento externo otimizada:
     Goodreads -> Google Books API
