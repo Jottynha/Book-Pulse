@@ -38,17 +38,19 @@ from tqdm import tqdm
 
 BASE_DIR = Path(__file__).resolve().parent
 PASTA_PROCESSED = BASE_DIR / "processed"
+PASTA_AMOSTRA = PASTA_PROCESSED / "01_amostra"
+PASTA_GOOGLE = PASTA_PROCESSED / "03_google_books"
 
-ARQUIVO_BOOKS = PASTA_PROCESSED / "goodreads_books_100k.parquet"
-ARQUIVO_REVIEWS = PASTA_PROCESSED / "goodreads_reviews_100k.parquet"
+ARQUIVO_BOOKS = PASTA_AMOSTRA / "goodreads_books_100k.parquet"
+ARQUIVO_REVIEWS = PASTA_AMOSTRA / "goodreads_reviews_100k.parquet"
 
-ARQUIVO_CACHE = PASTA_PROCESSED / "google_books_cache_batches.json"
+ARQUIVO_CACHE = PASTA_GOOGLE / "google_books_cache_batches.json"
 
 ARQUIVO_BOOKS_SAIDA = (
-    PASTA_PROCESSED / "goodreads_books_google_books_100k.parquet"
+    PASTA_GOOGLE / "goodreads_books_google_books_100k.parquet"
 )
 ARQUIVO_REVIEWS_SAIDA = (
-    PASTA_PROCESSED / "goodreads_reviews_google_books_100k.parquet"
+    PASTA_GOOGLE / "goodreads_reviews_google_books_100k.parquet"
 )
 
 GOOGLE_URL = "https://www.googleapis.com/books/v1/volumes"
@@ -587,7 +589,7 @@ def salvar_saidas(
 # ============================================================
 
 def main() -> None:
-    PASTA_PROCESSED.mkdir(parents=True, exist_ok=True)
+    PASTA_GOOGLE.mkdir(parents=True, exist_ok=True)
 
     print("=" * 70)
     print("04 - GOODREADS + GOOGLE BOOKS API (MODO ALTA PRODUÇÃO)")

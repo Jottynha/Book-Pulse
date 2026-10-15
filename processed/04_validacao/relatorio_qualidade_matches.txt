@@ -26,6 +26,13 @@ baixo: 128
 rejeitar: 1,067
 sem_match: 690
 
+FILA DE REVISÃO MANUAL
+----------------------------------------------------------------------
+Total: 1,885
+Sem match nas duas fontes: 690
+Rejeitar: 1,067
+Baixo: 128
+
 Livros considerados adequados para EDA: 7,031
 
 ======================================================================

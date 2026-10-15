@@ -18,11 +18,11 @@ Classificação:
 - SEM_MATCH
 
 Saídas:
-processed/goodreads_books_validated_100k.parquet
-processed/goodreads_reviews_validated_100k.parquet
-processed/matches_para_revisao.csv
-processed/relatorio_qualidade_matches.json
-processed/relatorio_qualidade_matches.txt
+processed/04_validacao/goodreads_books_validated_100k.parquet
+processed/04_validacao/goodreads_reviews_validated_100k.parquet
+processed/04_validacao/matches_para_revisao.csv
+processed/04_validacao/relatorio_qualidade_matches.json
+processed/04_validacao/relatorio_qualidade_matches.txt
 """
 
 from __future__ import annotations
@@ -49,44 +49,47 @@ PASTA_PROJETO = Path(
     )
 )
 PASTA_PROCESSED = PASTA_PROJETO / "processed"
+PASTA_OPENLIBRARY = PASTA_PROCESSED / "02_openlibrary"
+PASTA_GOOGLE = PASTA_PROCESSED / "03_google_books"
+PASTA_VALIDACAO = PASTA_PROCESSED / "04_validacao"
 
 ARQUIVO_BOOKS_OPENLIBRARY = (
-    PASTA_PROCESSED
+    PASTA_OPENLIBRARY
     / "goodreads_books_openlibrary_100k.parquet"
 )
 
 ARQUIVO_BOOKS_GOOGLE = (
-    PASTA_PROCESSED
+    PASTA_GOOGLE
     / "goodreads_books_google_books_100k.parquet"
 )
 
 ARQUIVO_REVIEWS = (
-    PASTA_PROCESSED
+    PASTA_PROCESSED / "01_amostra"
     / "goodreads_reviews_100k.parquet"
 )
 
 ARQUIVO_BOOKS_SAIDA = (
-    PASTA_PROCESSED
+    PASTA_VALIDACAO
     / "goodreads_books_validated_100k.parquet"
 )
 
 ARQUIVO_REVIEWS_SAIDA = (
-    PASTA_PROCESSED
+    PASTA_VALIDACAO
     / "goodreads_reviews_validated_100k.parquet"
 )
 
 ARQUIVO_REVISAR = (
-    PASTA_PROCESSED
+    PASTA_VALIDACAO
     / "matches_para_revisao.csv"
 )
 
 ARQUIVO_RELATORIO_JSON = (
-    PASTA_PROCESSED
+    PASTA_VALIDACAO
     / "relatorio_qualidade_matches.json"
 )
 
 ARQUIVO_RELATORIO_TXT = (
-    PASTA_PROCESSED
+    PASTA_VALIDACAO
     / "relatorio_qualidade_matches.txt"
 )
 
@@ -511,6 +514,22 @@ def validar_livro(
     ):
         status = "REJEITAR"
 
+    if status == "SEM_MATCH":
+        review_priority = 1
+        review_reason = "sem_match_nas_duas_fontes"
+    elif conflito_fontes:
+        review_priority = 2
+        review_reason = "conflito_de_titulo_entre_fontes"
+    elif status == "REJEITAR":
+        review_priority = 3
+        review_reason = "evidencia_insuficiente_ou_incompativel"
+    elif status == "BAIXO":
+        review_priority = 4
+        review_reason = "similaridade_baixa"
+    else:
+        review_priority = 0
+        review_reason = ""
+
     return {
         "title_similarity_openlibrary": round(
             title_sim_ol,
@@ -535,6 +554,11 @@ def validar_livro(
         "year_match_google": ano_google_ok,
         "match_score": score,
         "match_status": status,
+        "openlibrary_found": tem_ol,
+        "google_found": tem_google,
+        "source_title_conflict": conflito_fontes,
+        "review_priority": review_priority,
+        "review_reason": review_reason,
     }
 
 
@@ -690,6 +714,16 @@ def gerar_relatorio(
                 ]
             ).sum()
         ),
+        "fila_revisao": {
+            "total": int(
+                livros["match_status"].isin(
+                    ["BAIXO", "REJEITAR", "SEM_MATCH"]
+                ).sum()
+            ),
+            "sem_match": status_counts.get("SEM_MATCH", 0),
+            "rejeitar": status_counts.get("REJEITAR", 0),
+            "baixo": status_counts.get("BAIXO", 0),
+        },
     }
 
 
@@ -757,6 +791,19 @@ def salvar_relatorio_txt(
             f"{chave}: {valor:,}"
         )
 
+    fila = relatorio["fila_revisao"]
+    linhas.extend(
+        [
+            "",
+            "FILA DE REVISÃO MANUAL",
+            "-" * 70,
+            f"Total: {fila['total']:,}",
+            f"Sem match nas duas fontes: {fila['sem_match']:,}",
+            f"Rejeitar: {fila['rejeitar']:,}",
+            f"Baixo: {fila['baixo']:,}",
+        ]
+    )
+
     linhas.extend(
         [
             "",
@@ -781,6 +828,7 @@ def salvar_relatorio_txt(
 # ============================================================
 
 def main() -> None:
+    PASTA_VALIDACAO.mkdir(parents=True, exist_ok=True)
 
     print("=" * 70)
     print(
@@ -881,9 +929,13 @@ def main() -> None:
             [
                 "BAIXO",
                 "REJEITAR",
+                "SEM_MATCH",
             ]
         )
-    ].copy()
+    ].sort_values(
+        ["review_priority", "match_score", "book_id"],
+        ascending=[True, True, True],
+    ).copy()
 
     colunas_revisao = [
         "book_id",
@@ -909,9 +961,18 @@ def main() -> None:
         "isbn13_match_openlibrary",
         "isbn13_match_google",
         "same_isbn13_between_apis",
+        "same_isbn10_between_apis",
+        "authors_match_between_apis",
+        "year_match_openlibrary",
+        "year_match_google",
+        "openlibrary_found",
+        "google_found",
+        "source_title_conflict",
 
         "match_score",
         "match_status",
+        "review_priority",
+        "review_reason",
     ]
 
     colunas_revisao = [

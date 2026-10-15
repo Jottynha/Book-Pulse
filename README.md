@@ -51,7 +51,9 @@ livros sem match.
 ```python
 import pandas as pd
 
-df = pd.read_parquet("processed/goodreads_reviews_validated_100k.parquet")
+df = pd.read_parquet(
+    "processed/04_validacao/goodreads_reviews_validated_100k.parquet"
+)
 df_confiavel = df[
     df["match_status"].isin(["MUITO_ALTO", "ALTO", "MEDIO"])
 ].copy()
@@ -89,24 +91,37 @@ O validador compara, quando disponíveis:
 
 Cada livro recebe `match_status` em `MUITO_ALTO`, `ALTO`, `MEDIO`, `BAIXO`,
 `REJEITAR` ou `SEM_MATCH`. Os casos fracos ou conflitantes ficam em
-`processed/matches_para_revisao.csv`.
+`processed/04_validacao/matches_para_revisao.csv`.
+
+A fila de revisão manual inclui agora todos os livros `BAIXO`, `REJEITAR` e
+`SEM_MATCH`, totalizando 1.885 registros na execução atual:
+
+| Situação | Quantidade |
+| --- | ---: |
+| `SEM_MATCH` nas duas fontes | 690 |
+| `REJEITAR` | 1.067 |
+| `BAIXO` | 128 |
+
+Cada registro recebe `review_priority`, `review_reason`, presença em cada fonte,
+indicadores de ISBN, autores, anos e conflito entre títulos. A prioridade 1 é
+reservada para ausência total de match; prioridades maiores indicam conflito ou
+evidência fraca. Nenhum match é promovido automaticamente durante essa revisão:
+uma eventual correção manual deve ser uma decisão registrada e reproduzível.
 
 ## Pipeline
 
 ```text
 01_amostra_reviews.py
-    -> goodreads_reviews_100k.parquet
-    -> goodreads_books_100k.parquet
+    -> processed/01_amostra/
 02_cruzar_openlibrary.py
-    -> goodreads_books_openlibrary_100k.parquet
+    -> processed/02_openlibrary/
 03_cruzar_google_books.py
-    -> goodreads_books_google_books_100k.parquet
+    -> processed/03_google_books/
 04_validar_matches.py
-    -> goodreads_books_validated_100k.parquet
-    -> goodreads_reviews_validated_100k.parquet
+    -> processed/04_validacao/
     -> relatório de qualidade e fila de revisão
-05_eda_amostra.py
-    -> processed/eda_amostra_confiante/
+05_preparar_dados.py
+    -> processed/05_dados_prontos/
 ```
 
 As etapas externas trabalham somente com os livros únicos da amostra. A análise
@@ -115,53 +130,50 @@ principal usa exclusivamente o resultado validado e os matches confiáveis.
 > **Nota:** o sufixo `100k` é histórico e foi mantido para não quebrar o pipeline.
 > A execução documentada contém 10.000 reviews, não 100.000.
 
-## EDA inicial da amostra
+## Preparação final dos dados
 
-O script `05_eda_amostra.py` gera uma base consolidada, tabelas agregadas,
-relatório Markdown e gráficos PNG com perfil da amostra, usuários, notas,
-tamanho das reviews, votos, comentários, livros, metadados e gêneros aproximados.
-
-Por padrão, a análise principal usa somente matches confiáveis:
+O script `05_preparar_dados.py` é a etapa final antes da análise. Ele usa somente
+matches `MUITO_ALTO`, `ALTO` e `MEDIO` e produz dados limpos, sem duplicatas de
+reviews/livros, com tipos numéricos e datas normalizadas, texto higienizado e
+variáveis de tamanho da resenha.
 
 ```bash
-python3 05_eda_amostra.py --only-confident
+python3 05_preparar_dados.py
 ```
 
-Esse comando grava em `processed/eda_amostra_confiante/`, que é a única saída
-analítica mantida no escopo final.
+As `popular_shelves`, assuntos da Open Library e categorias do Google Books são
+combinados para atribuir no máximo três gêneros específicos por livro. A saída
+preserva `genre_evidence`, isto é, os rótulos que sustentaram a atribuição. Livros
+sem evidência suficiente ficam como `unclassified`, sem gênero inventado.
 
-As `popular_shelves` são rótulos sociais e podem se sobrepor. O script classifica
-cada shelf como `genre_proxy`, `status_leitura`, `formato` ou `outro`. Apenas
-`genre_proxy` entra em `analise_generos.csv`; portanto, o resultado é um
-indicador exploratório, não uma classificação editorial definitiva.
+Na execução atual, 6.971 dos 7.031 livros receberam ao menos um gênero, 6.183
+receberam três gêneros e 60 ficaram sem evidência específica. A ordem dos gêneros
+é determinada pela força e pela quantidade de evidências, com assuntos/categorias
+das fontes externas pesando mais que shelves sociais do Goodreads. Essas
+categorias são variáveis analíticas controladas, não uma taxonomia editorial
+definitiva.
 
-Ratings iguais a zero são preservados para medir ausência de avaliação, mas não
-entram nas médias e medianas analíticas. Essas métricas usam somente ratings de 1
-a 5 e cada tabela agregada informa `notas_validas`; médias ausentes significam
-que aquele grupo não possui nenhuma nota válida.
+Ratings zero são preservados como ausência de avaliação e não entram em métricas
+que usem `rating_valido`. Reviews em outros idiomas ou com caracteres não ASCII
+continuam na base, mas recebem indicadores para tratamento específico na análise.
 
-Principais artefatos da EDA, reduzidos às tabelas necessárias para a análise:
+Arquivos finais:
 
-- `base_eda_consolidada.parquet`: uma linha por review com variáveis do livro;
-- `perfil_eda.csv`: indicadores essenciais da amostra;
-- `analise_livros.csv`: uma linha por livro, com métricas agregadas;
-- `analise_usuarios.csv`: uma linha por usuário, com métricas agregadas;
-- `analise_generos.csv`: gêneros proxy com livros, reviews e notas;
-- `relatorio_eda.md` e os gráficos `01_` a `04_`.
-
-As relações observadas na EDA são descritivas e não demonstram causalidade.
+- `reviews_prontas.parquet`: reviews limpas e confiáveis;
+- `livros_prontos.parquet`: livros associados à amostra confiável;
+- `base_analise.parquet`: reviews e livros unidos por `book_id`;
+- `generos_livros.csv`: gêneros atribuídos e frequência;
+- `relatorio_preparacao.md`: cobertura e decisões de limpeza.
 
 ## Arquivos principais
 
 ```text
 processed/
-├── goodreads_books_validated_100k.parquet
-├── goodreads_reviews_validated_100k.parquet
-├── openlibrary_cache.json
-├── google_books_cache_batches.json
-├── matches_para_revisao.csv
-├── relatorio_qualidade_matches.*
-└── eda_amostra_confiante/
+├── 01_amostra/
+├── 02_openlibrary/
+├── 03_google_books/
+├── 04_validacao/
+└── 05_dados_prontos/
 ```
 
 ## Execução completa
@@ -172,7 +184,7 @@ python3 01_amostra_reviews.py
 python3 02_cruzar_openlibrary.py
 python3 03_cruzar_google_books.py
 python3 04_validar_matches.py
-python3 05_eda_amostra.py --only-confident
+python3 05_preparar_dados.py
 ```
 
 Para o Google Books, configure `GOOGLE_BOOKS_API_KEY` no ambiente ou em `.env`.

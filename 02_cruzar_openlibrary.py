@@ -11,14 +11,14 @@ Estratégia:
 1. Usa ISBN-13/ISBN-10 em lote pelo endpoint /api/books.
 2. Livros sem resultado por ISBN são buscados pelo Search API usando
    título + autor e, por último, título.
-3. Mantém cache independente em processed/openlibrary_cache.json.
+3. Mantém cache independente em processed/02_openlibrary/openlibrary_cache.json.
 4. Permite interromper e continuar sem refazer livros já processados.
 5. Salva uma tabela independente da Open Library; NÃO chama Google Books.
 
 Saídas:
-    processed/openlibrary_cache.json
-    processed/goodreads_books_openlibrary_100k.parquet
-    processed/goodreads_reviews_openlibrary_100k.parquet
+    processed/02_openlibrary/openlibrary_cache.json
+    processed/02_openlibrary/goodreads_books_openlibrary_100k.parquet
+    processed/02_openlibrary/goodreads_reviews_openlibrary_100k.parquet
 """
 
 from __future__ import annotations
@@ -43,18 +43,20 @@ from tqdm import tqdm
 
 BASE_DIR = Path(__file__).resolve().parent
 PASTA_PROCESSED = BASE_DIR / "processed"
+PASTA_AMOSTRA = PASTA_PROCESSED / "01_amostra"
+PASTA_OPENLIBRARY = PASTA_PROCESSED / "02_openlibrary"
 
-ARQUIVO_BOOKS = PASTA_PROCESSED / "goodreads_books_100k.parquet"
-ARQUIVO_REVIEWS = PASTA_PROCESSED / "goodreads_reviews_100k.parquet"
+ARQUIVO_BOOKS = PASTA_AMOSTRA / "goodreads_books_100k.parquet"
+ARQUIVO_REVIEWS = PASTA_AMOSTRA / "goodreads_reviews_100k.parquet"
 
-ARQUIVO_CACHE = PASTA_PROCESSED / "openlibrary_cache.json"
+ARQUIVO_CACHE = PASTA_OPENLIBRARY / "openlibrary_cache.json"
 ARQUIVO_CACHE_ANTIGO = PASTA_PROCESSED / "google_books_cache.json"
 
 ARQUIVO_BOOKS_SAIDA = (
-    PASTA_PROCESSED / "goodreads_books_openlibrary_100k.parquet"
+    PASTA_OPENLIBRARY / "goodreads_books_openlibrary_100k.parquet"
 )
 ARQUIVO_REVIEWS_SAIDA = (
-    PASTA_PROCESSED / "goodreads_reviews_openlibrary_100k.parquet"
+    PASTA_OPENLIBRARY / "goodreads_reviews_openlibrary_100k.parquet"
 )
 
 OPENLIBRARY_BATCH_URL = "https://openlibrary.org/api/books"
@@ -783,7 +785,7 @@ def salvar_saidas(
 
 
 def main() -> None:
-    PASTA_PROCESSED.mkdir(parents=True, exist_ok=True)
+    PASTA_OPENLIBRARY.mkdir(parents=True, exist_ok=True)
 
     print("=" * 70)
     print("03 - GOODREADS + OPEN LIBRARY")

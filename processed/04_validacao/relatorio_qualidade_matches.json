@@ -23,5 +23,11 @@
     "rejeitar": 1067,
     "sem_match": 690
   },
-  "livros_prontos_para_eda": 7031
+  "livros_prontos_para_eda": 7031,
+  "fila_revisao": {
+    "total": 1885,
+    "sem_match": 690,
+    "rejeitar": 1067,
+    "baixo": 128
+  }
 }

@@ -40,7 +40,8 @@ PASTA_PROJETO = os.getenv(
 
 PASTA_PROCESSED = os.path.join(
     PASTA_PROJETO,
-    "processed"
+    "processed",
+    "01_amostra",
 )
 
 # Saída dos reviews
