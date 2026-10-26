@@ -122,6 +122,8 @@ uma eventual correção manual deve ser uma decisão registrada e reproduzível.
     -> relatório de qualidade e fila de revisão
 05_preparar_dados.py
     -> processed/05_dados_prontos/
+06_analisar_reviews.py
+    -> processed/06_analise/
 ```
 
 As etapas externas trabalham somente com os livros únicos da amostra. A análise
@@ -165,6 +167,31 @@ Arquivos finais:
 - `generos_livros.csv`: gêneros atribuídos e frequência;
 - `relatorio_preparacao.md`: cobertura e decisões de limpeza.
 
+## Passo 6: refinamento textual e análise inicial
+
+O script `06_analisar_reviews.py` inicia a análise comportamental. Ele preserva
+`review_text` e cria uma versão refinada (`review_text_refined`) sem HTML, URLs,
+caracteres de controle, pontuação e diferenças de caixa. Também calcula
+quantidade de tokens, diversidade lexical, frases e um score de sentimento
+lexical transparente, baseado em um vocabulário pequeno em inglês.
+
+O score de sentimento é somente uma linha de base: não resolve negação, ironia
+ou contexto. Ele serve para orientar a exploração e deve ser substituído ou
+comparado com uma abordagem de NLP mais robusta antes de conclusões finais.
+
+```bash
+python3 06_analisar_reviews.py
+```
+
+Saídas em `processed/06_analise/`:
+
+- `reviews_refinadas.parquet`: reviews com variáveis textuais;
+- `resumo_por_nota.csv`: extensão, sentimento, votos e comentários por nota;
+- `resumo_por_genero.csv`: indicadores por gênero principal;
+- `resumo_por_usuario.csv`: atividade agregada por usuário;
+- `correlacoes_com_rating.csv`: correlações exploratórias;
+- `visao_geral_reviews.png` e `relatorio_analise.md`.
+
 ## Arquivos principais
 
 ```text
@@ -173,7 +200,8 @@ processed/
 ├── 02_openlibrary/
 ├── 03_google_books/
 ├── 04_validacao/
-└── 05_dados_prontos/
+├── 05_dados_prontos/
+└── 06_analise/
 ```
 
 ## Execução completa
@@ -185,6 +213,7 @@ python3 02_cruzar_openlibrary.py
 python3 03_cruzar_google_books.py
 python3 04_validar_matches.py
 python3 05_preparar_dados.py
+python3 06_analisar_reviews.py
 ```
 
 Para o Google Books, configure `GOOGLE_BOOKS_API_KEY` no ambiente ou em `.env`.
