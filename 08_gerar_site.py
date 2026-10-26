@@ -13,7 +13,7 @@ import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parent
 ENTRADA = BASE_DIR / "processed" / "07_sentimento" / "reviews_sentimento.parquet"
-SAIDA = BASE_DIR / "site" / "data" / "books.json"
+SAIDA = BASE_DIR / "data" / "books.json"
 
 STOPWORDS = {
     "a", "about", "after", "again", "all", "also", "an", "and", "are", "as",

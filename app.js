@@ -117,11 +117,19 @@ function renderGraph(book) {
     <g class="graph-edges">${edges.map((edge) => `<line x1="${edge.source.x}" y1="${edge.source.y}" x2="${edge.target.x}" y2="${edge.target.y}" style="stroke-width:${Math.min(5, 1 + edge.weight / 6)}"></line>`).join("")}</g>
     <g class="graph-nodes">${nodes.map((node) => {
       const radius = node.type === "book" ? 43 : node.type === "word" ? 26 + Math.min(13, node.count / 3) : 25;
-      const label = node.type === "related" ? node.label.slice(0, 20) : node.label;
+      const label = node.type === "word" ? node.label : "";
+      const image = node.type !== "word"
+        ? `<image class="node-cover" href="${escapeHtml(cover(node.book?.cover_url || book.cover_url, node.label))}" data-fallback="${escapeHtml(node.book?.cover_fallback_url || "")}" x="${-radius}" y="${-radius}" width="${radius * 2}" height="${radius * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#clip-${node.type}-${node.id})" onerror="this.onerror=null;this.setAttribute('href',this.dataset.fallback || '${escapeHtml(cover("", node.label))}')"></image>`
+        : "";
+      const clip = node.type !== "word"
+        ? `<clipPath id="clip-${node.type}-${node.id}"><circle r="${radius - 1}"></circle></clipPath>`
+        : "";
       return `<g class="graph-node ${node.type}" transform="translate(${node.x} ${node.y})" data-node-id="${escapeHtml(node.id)}" tabindex="0">
-        <circle r="${radius}" filter="url(#graph-shadow)"></circle>
-        <text class="node-label">${escapeHtml(label)}</text>
+        ${clip}<circle class="node-background" r="${radius}" filter="url(#graph-shadow)"></circle>${image}
+        <circle class="node-outline" r="${radius}"></circle>
+        ${label ? `<text class="node-label">${escapeHtml(label)}</text>` : ""}
         ${node.type === "word" ? `<text class="node-count">${node.count}x</text>` : ""}
+        ${node.type === "related" ? `<title>${escapeHtml(node.label)}</title>` : ""}
       </g>`;
     }).join("")}</g>
   </svg>`;

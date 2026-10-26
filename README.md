@@ -63,7 +63,7 @@ livro seja inválido. Os registros fracos continuam preservados em
 07_analise_sentimento.py
   -> processed/07_sentimento/
 08_gerar_site.py
-  -> site/data/books.json
+  -> data/books.json
 ```
 
 O sufixo `100k` dos arquivos é histórico; a execução documentada contém 10.000
@@ -166,7 +166,8 @@ os resultados efetivamente observados e separa conclusões de propostas futuras.
 
 ## 8. BookPulse: exploração e recomendação
 
-O site em `site/` transforma os resultados agregados em uma interface de
+O site na raiz (`index.html`, `styles.css`, `app.js` e `data/books.json`)
+transforma os resultados agregados em uma interface de
 exploração. Ele permite:
 
 - buscar livros pelo título ou autor;
@@ -192,12 +193,12 @@ Para gerar os dados do site e servir a interface:
 
 ```bash
 py -3 08_gerar_site.py
-py -3 -m http.server 8000 --directory site
+py -3 -m http.server 8000
 ```
 
 Abra <http://localhost:8000>. O servidor local é necessário porque o navegador
 bloqueia `fetch` de arquivos JSON quando a página é aberta diretamente por
-`file://`.
+`file://`. Essa mesma estrutura é compatível com hospedagem no GitHub Pages.
 
 ## 9. Saídas e organização
 
