@@ -100,8 +100,9 @@ lexical. O baseline usa um vocabulário explícito em inglês e uma regra simple
 para negadores nas três palavras anteriores. O score também é normalizado por
 100 palavras.
 
-Na execução atual, foram processadas 8.033 reviews, das quais 7.983 têm texto
-refinado e 50 não têm tokens utilizáveis. O baseline é interpretável, mas não
+Na execução atual, foram processadas 8.033 reviews. Não há reviews vazias na
+base bruta; 50 registros não produzem tokens úteis no refinamento lexical,
+principalmente por características do texto. O baseline é interpretável, mas não
 resolve ironia, sarcasmo, escopo complexo, contexto literário ou sentimentos
 mistos. Ele deve orientar a exploração, não ser apresentado como sentimento
 validado.
@@ -150,7 +151,20 @@ Antes de usar um checkpoint, deve-se conferir model card, idioma, domínio,
 licença, limite de entrada e requisitos computacionais. Reviews longas são
 divididas em trechos sobrepostos; a quantidade de trechos é registrada.
 
-## 7. BookPulse: exploração e recomendação
+## 7. Coerência metodológica e estado dos resultados
+
+O projeto distingue preparação, exploração, inferência e produto visual. Os
+resultados numéricos principais são descritivos e observacionais. O VADER e o
+baseline lexical geram sinais exploratórios para comparar livros e palavras,
+mas não há ainda rótulos humanos preenchidos para estimar acurácia ou validar
+um classificador de sentimento. O site, portanto, é uma visualização e uma
+prova de conceito de recomendação baseada em similaridade textual agregada,
+não um sistema de recomendação validado em usuários.
+
+O artigo em [relatorio.tex](relatorio.tex) registra essa delimitação, descreve
+os resultados efetivamente observados e separa conclusões de propostas futuras.
+
+## 8. BookPulse: exploração e recomendação
 
 O site em `site/` transforma os resultados agregados em uma interface de
 exploração. Ele permite:
@@ -167,11 +181,12 @@ exploração. Ele permite:
 
 As recomendações são exploratórias: não representam uma avaliação editorial,
 não usam o texto bruto das resenhas na página e não implicam que livros
-semelhantes sejam necessariamente melhores. As capas priorizam o endpoint grande (`-L`) da Open Library e fazem fallback
-automático para o tamanho médio (`-M`) ou para uma capa gerada quando não há
-ISBN ou imagem disponível. No grafo, o livro selecionado fica no centro, as
-palavras no primeiro anel e os títulos relacionados no anel externo. A
-espessura das linhas indica a frequência do termo compartilhado.
+semelhantes sejam necessariamente melhores. As capas priorizam o endpoint
+grande (`-L`) da Open Library e fazem fallback automático para o tamanho médio
+(`-M`) ou para uma capa gerada quando não há ISBN ou imagem disponível. No
+grafo, o livro selecionado fica no centro, as palavras no primeiro anel e os
+títulos relacionados no anel externo. A espessura das linhas indica a
+frequência do termo compartilhado.
 
 Para gerar os dados do site e servir a interface:
 
@@ -184,14 +199,14 @@ Abra <http://localhost:8000>. O servidor local é necessário porque o navegador
 bloqueia `fetch` de arquivos JSON quando a página é aberta diretamente por
 `file://`.
 
-## 8. Saídas e organização
+## 9. Saídas e organização
 
 Os parquets, CSVs e caches em `processed/` são artefatos do pipeline. A
 documentação metodológica foi consolidada neste README para evitar relatórios
 fragmentados e desatualizados. O site mantém apenas os dados agregados
 necessários à visualização.
 
-## 9. Execução completa
+## 10. Execução completa
 
 ```bash
 py -3 -m pip install -r requirements.txt
@@ -208,7 +223,7 @@ py -3 08_gerar_site.py
 O Google Books exige `GOOGLE_BOOKS_API_KEY` no ambiente ou em `.env`. As etapas
 externas reaproveitam os caches persistidos em `processed/`.
 
-## 10. Referências metodológicas
+## 11. Referências metodológicas
 
 - Pang, Lee e Vaithyanathan (2002), classificação supervisionada de reviews:
   <https://doi.org/10.3115/1118693.1118704>
