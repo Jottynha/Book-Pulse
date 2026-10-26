@@ -32,6 +32,8 @@ PALAVRAS_NEGATIVAS = {
     "hated", "messy", "poor", "predictable", "slow", "terrible", "waste",
     "worst", "weak",
 }
+NEGADORES = {"not", "no", "never", "neither", "nor", "hardly", "without"}
+JANELA_NEGACAO = 3
 
 
 def refinar_texto(valor: object) -> tuple[str, list[str]]:
@@ -64,18 +66,37 @@ def extrair_variaveis_textuais(reviews: pd.DataFrame) -> pd.DataFrame:
         lambda valor: len(re.findall(r"[.!?]+", str(valor))) if valor else 0
     )
 
-    def contar_sentimento(tokens: str, palavras: set[str]) -> int:
-        return sum(token in palavras for token in tokens.split("|") if token)
+    def score_sentimento(tokens: str) -> tuple[int, int, int]:
+        tokens_lista = [token for token in tokens.split("|") if token]
+        positivos = negativos = score = 0
+        for indice, token in enumerate(tokens_lista):
+            polaridade = (
+                1 if token in PALAVRAS_POSITIVAS
+                else -1 if token in PALAVRAS_NEGATIVAS
+                else 0
+            )
+            if polaridade == 0:
+                continue
+            inicio_negacao = max(0, indice - JANELA_NEGACAO)
+            if any(
+                candidato in NEGADORES
+                for candidato in tokens_lista[inicio_negacao:indice]
+            ):
+                polaridade *= -1
+            positivos += polaridade > 0
+            negativos += polaridade < 0
+            score += polaridade
+        return positivos, negativos, score
 
-    reviews["positive_word_count"] = reviews["review_tokens"].map(
-        lambda tokens: contar_sentimento(tokens, PALAVRAS_POSITIVAS)
-    )
-    reviews["negative_word_count"] = reviews["review_tokens"].map(
-        lambda tokens: contar_sentimento(tokens, PALAVRAS_NEGATIVAS)
-    )
-    reviews["sentiment_score"] = (
-        reviews["positive_word_count"] - reviews["negative_word_count"]
-    )
+    scores = reviews["review_tokens"].map(score_sentimento)
+    reviews["positive_word_count"] = scores.map(lambda score: score[0])
+    reviews["negative_word_count"] = scores.map(lambda score: score[1])
+    reviews["sentiment_score"] = scores.map(lambda score: score[2])
+    reviews["sentiment_score_per_100_words"] = (
+        reviews["sentiment_score"]
+        / reviews["refined_word_count"].replace(0, pd.NA)
+        * 100
+    ).astype("Float64").fillna(0.0)
     reviews["sentiment_label"] = reviews["sentiment_score"].map(
         lambda score: "positive" if score > 0 else "negative" if score < 0 else "neutral"
     )
@@ -161,17 +182,24 @@ def salvar_relatorio(
     resumo_usuario: pd.DataFrame,
 ) -> None:
     validas = reviews[reviews["rating_valido"].notna()]
-    correlacoes = validas[
-        [
-            "rating_valido",
-            "refined_word_count",
-            "sentiment_score",
-            "n_votes",
-            "n_comments",
-            "ratings_count",
-        ]
-    ].corr()["rating_valido"].drop("rating_valido")
-    correlacoes.to_csv(PASTA_SAIDA / "correlacoes_com_rating.csv", header=["correlation"])
+    variaveis_correlacao = [
+        "rating_valido",
+        "refined_word_count",
+        "sentiment_score_per_100_words",
+        "n_votes",
+        "n_comments",
+        "ratings_count",
+    ]
+    dados_correlacao = validas[variaveis_correlacao]
+    correlacoes = pd.DataFrame(
+        {
+            "pearson": dados_correlacao.corr(method="pearson")["rating_valido"],
+            "spearman": dados_correlacao.corr(method="spearman")["rating_valido"],
+        }
+    ).drop(index="rating_valido")
+    correlacoes.rename_axis("variable").to_csv(
+        PASTA_SAIDA / "correlacoes_com_rating.csv"
+    )
 
     top_generos = resumo_genero.head(10)
     linhas_generos = "\n".join(
@@ -211,11 +239,54 @@ Os arquivos `resumo_por_nota.csv`, `resumo_por_genero.csv`,
 ## Sentimento lexical
 
 `sentiment_score` é a contagem de palavras positivas menos negativas em um
-vocabulário pequeno e explícito em inglês. `sentiment_label` classifica o score
-como `positive`, `negative` ou `neutral`. Isso é uma linha de base auditável,
-não uma medição definitiva: não trata bem negação, ironia, contexto ou
-vocabulário específico de livros. As conclusões principais devem ser
-confirmadas com uma abordagem de NLP mais robusta.
+vocabulário pequeno e explícito em inglês. A regra inverte a polaridade quando
+há um negador nas três palavras anteriores; `sentiment_score_per_100_words`
+reduz o efeito mecânico do tamanho da review. `sentiment_label` classifica o
+score como `positive`, `negative` ou `neutral`. Isso continua sendo uma linha
+de base auditável, não uma medição validada: não trata adequadamente ironia,
+escopo linguístico complexo ou contexto específico de livros.
+
+## Fundamentação e limites metodológicos
+
+O score lexical é mantido como baseline interpretável. A literatura mostra que
+classificação de reviews depende de composição e contexto, e não apenas de
+contagem de palavras (Pang, Lee e Vaithyanathan, 2002; Socher et al., 2013).
+Para uma versão final do trabalho, a recomendação é:
+
+1. anotar manualmente uma amostra estratificada e medir concordância entre
+   anotadores (Cohen's kappa);
+2. comparar o baseline com VADER e TF-IDF + regressão logística ou Linear SVM;
+3. manter um conjunto de teste separado, evitando usar a nota Goodreads como
+   verdade absoluta de sentimento;
+4. reportar macro-F1, F1 por classe, balanced accuracy, matriz de confusão e
+   exemplos de erro;
+5. comparar splits por review, usuário e livro para investigar vazamento;
+6. interpretar correlações como associações observacionais, não causalidade.
+
+As correlações exportadas usam Pearson e Spearman; são medidas exploratórias e
+não controlam confundidores como usuário, livro, gênero ou popularidade.
+
+Um transformer, como DistilBERT ou RoBERTa, pode ser uma extensão posterior,
+desde que seja treinado e avaliado com rótulos humanos ou com o proxy de rating
+explicitamente identificado como rótulo fraco.
+
+## Referências
+
+- Pang, B.; Lee, L.; Vaithyanathan, S. (2002). *Thumbs up? Sentiment
+  Classification using Machine Learning Techniques*.
+  https://doi.org/10.3115/1118693.1118704
+- Hutto, C. J.; Gilbert, E. (2014). *VADER: A Parsimonious Rule-based Model
+  for Sentiment Analysis of Social Media Text*.
+  https://doi.org/10.1609/icwsm.v8i1.14550
+- Socher, R. et al. (2013). *Recursive Deep Models for Semantic
+  Compositionality Over a Sentiment Treebank*.
+  https://aclanthology.org/D13-1170/
+- Devlin, J. et al. (2019). *BERT: Pre-training of Deep Bidirectional
+  Transformers for Language Understanding*.
+  https://doi.org/10.18653/v1/N19-1423
+- scikit-learn. *Cross-validation* e *Metrics and scoring*.
+  https://scikit-learn.org/stable/modules/cross_validation.html
+  e https://scikit-learn.org/stable/modules/model_evaluation.html
 
 ## Saídas
 

@@ -179,6 +179,30 @@ O score de sentimento é somente uma linha de base: não resolve negação, iron
 ou contexto. Ele serve para orientar a exploração e deve ser substituído ou
 comparado com uma abordagem de NLP mais robusta antes de conclusões finais.
 
+### Como apresentar a análise no trabalho
+
+A análise deve ser apresentada como uma sequência de decisões metodológicas,
+não como uma afirmação de que o score lexical mede perfeitamente o sentimento:
+
+1. **Exploração:** descrever distribuição das notas, tamanho das reviews,
+   gêneros, atividade dos usuários e votos/comentários.
+2. **Baseline:** usar o score lexical como referência interpretável, com regra
+   explícita para negadores e score normalizado por 100 palavras.
+3. **Validação:** anotar uma amostra estratificada por nota e comparar o
+   baseline com VADER e TF-IDF + regressão logística ou Linear SVM.
+4. **Avaliação:** manter teste separado e reportar macro-F1, F1 por classe,
+   balanced accuracy, matriz de confusão e análise de erros.
+5. **Robustez:** comparar divisão aleatória com divisões agrupadas por usuário e
+   livro, reduzindo risco de vazamento.
+6. **Interpretação:** chamar os resultados de associação/correlação; o desenho
+   observacional não permite concluir causalidade.
+
+A nota Goodreads pode ser usada como proxy para um experimento adicional
+(1–2 = negativo, 3 = neutro, 4–5 = positivo), mas esse rótulo é fraco: uma
+review pode elogiar um aspecto e criticar outro sem que a polaridade textual
+coincida com a nota. O ideal é validar uma amostra com anotação humana e medir
+Cohen's kappa entre anotadores.
+
 ```bash
 python3 06_analisar_reviews.py
 ```
@@ -191,6 +215,22 @@ Saídas em `processed/06_analise/`:
 - `resumo_por_usuario.csv`: atividade agregada por usuário;
 - `correlacoes_com_rating.csv`: correlações exploratórias;
 - `visao_geral_reviews.png` e `relatorio_analise.md`.
+
+### Referências metodológicas
+
+- Pang, Lee e Vaithyanathan (2002), classificação supervisionada de reviews:
+  <https://doi.org/10.3115/1118693.1118704>
+- Hutto e Gilbert (2014), VADER e regras para linguagem informal:
+  <https://doi.org/10.1609/icwsm.v8i1.14550>
+- Socher et al. (2013), composição semântica e Stanford Sentiment Treebank:
+  <https://aclanthology.org/D13-1170/>
+- Devlin et al. (2019), BERT e fine-tuning:
+  <https://doi.org/10.18653/v1/N19-1423>
+- scikit-learn, validação cruzada e métricas:
+  <https://scikit-learn.org/stable/modules/cross_validation.html> e
+  <https://scikit-learn.org/stable/modules/model_evaluation.html>
+- Hugging Face, classificação de texto:
+  <https://huggingface.co/docs/transformers/en/tasks/sequence_classification>
 
 ## Arquivos principais
 
