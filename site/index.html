@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BookPulse — padrões nas resenhas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero">
+    <nav class="nav shell">
+      <a class="brand" href="#">Book<span>Pulse</span></a>
+      <span class="nav-note">Goodreads · análise textual</span>
+    </nav>
+    <div class="hero-content shell">
+      <p class="eyebrow">Descubra o que os leitores dizem</p>
+      <h1>Livros conectados por<br><em>palavras e sentimentos.</em></h1>
+      <p class="hero-copy">Pesquise um título e explore os padrões linguísticos das resenhas: termos recorrentes, polaridade e livros com perfis semelhantes.</p>
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input id="search" type="search" autocomplete="off" placeholder="Digite o título de um livro..." aria-label="Buscar livro">
+        <span id="result-count" class="result-count"></span>
+      </div>
+      <div id="suggestions" class="suggestions" hidden></div>
+    </div>
+  </header>
+
+  <main class="shell main">
+    <section id="empty-state" class="empty-state">
+      <div class="empty-mark">✦</div>
+      <h2>Comece por um livro</h2>
+      <p>As recomendações são baseadas nos gêneros e no perfil de sentimento das resenhas analisadas.</p>
+      <div id="featured" class="featured-grid"></div>
+    </section>
+
+    <section id="book-view" hidden>
+      <div class="book-header">
+        <div class="cover-frame"><img id="cover" alt="" loading="lazy"></div>
+        <div class="book-intro">
+          <p class="eyebrow">Livro selecionado</p>
+          <h2 id="book-title"></h2>
+          <p id="book-author" class="author"></p>
+          <div id="book-genres" class="chips"></div>
+          <div class="stats">
+            <div><strong id="book-reviews"></strong><span>resenhas</span></div>
+            <div><strong id="book-rating"></strong><span>nota média</span></div>
+            <div><strong id="book-words"></strong><span>palavras / review</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="analysis-grid">
+        <section class="panel sentiment-panel">
+          <div class="panel-heading">
+            <div><p class="eyebrow">Clima das resenhas</p><h3>Como os leitores se sentem</h3></div>
+            <span id="score" class="score"></span>
+          </div>
+          <div class="sentiment-bar"><span id="bar-positive"></span><span id="bar-neutral"></span><span id="bar-negative"></span></div>
+          <div class="legend"><span><i class="dot positive"></i>Positivo <b id="positive-pct"></b></span><span><i class="dot neutral"></i>Neutro <b id="neutral-pct"></b></span><span><i class="dot negative"></i>Negativo <b id="negative-pct"></b></span></div>
+          <p class="method-note">Classificação exploratória baseada no VADER. Ela indica padrões agregados, não a verdade absoluta de cada resenha.</p>
+        </section>
+        <section class="panel">
+          <p class="eyebrow">Vocabulário recorrente</p>
+          <h3>Palavras que aparecem nas resenhas</h3>
+          <div id="common-words" class="word-cloud"></div>
+        </section>
+      </div>
+
+      <div class="analysis-grid lower">
+        <section class="panel">
+          <p class="eyebrow positive-text">Quando elogiam</p>
+          <h3>Termos em resenhas positivas</h3>
+          <div id="positive-words" class="word-list"></div>
+        </section>
+        <section class="panel">
+          <p class="eyebrow negative-text">Quando criticam</p>
+          <h3>Termos em resenhas negativas</h3>
+          <div id="negative-words" class="word-list"></div>
+        </section>
+      </div>
+
+      <section class="panel graph-panel">
+        <div class="section-heading graph-heading">
+          <div><p class="eyebrow">Mapa de linguagem</p><h2>As palavras que aproximam livros</h2></div>
+          <p>O tamanho das palavras acompanha sua frequência. Os títulos externos compartilham esses termos nas resenhas.</p>
+        </div>
+        <div class="graph-key"><span><i class="key-dot book-key"></i>livro selecionado</span><span><i class="key-dot word-key"></i>palavra</span><span><i class="key-dot related-key"></i>título relacionado</span></div>
+        <div id="book-graph" class="book-graph" role="img" aria-label="Grafo de palavras e livros relacionados"></div>
+        <p class="method-note">Conexões são exploratórias: contam palavras compartilhadas após a remoção de termos muito frequentes, não representam semelhança editorial ou causalidade.</p>
+      </section>
+
+      <section class="recommendations">
+        <div class="section-heading"><div><p class="eyebrow">Próxima leitura</p><h2>Livros com um pulso parecido</h2></div><p>Gênero e distribuição de sentimentos semelhantes.</p></div>
+        <div id="recommendation-grid" class="book-grid"></div>
+      </section>
+    </section>
+  </main>
+  <footer class="footer"><div class="shell"><span>BookPulse · projeto de Ciência de Dados</span><span>Dados agregados de 8.033 resenhas confiáveis</span></div></footer>
+  <script src="app.js"></script>
+</body>
+</html>

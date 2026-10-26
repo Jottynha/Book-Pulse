@@ -1,267 +1,225 @@
-# Book Review Data Analysis
+# BookPulse — análise comportamental de resenhas
 
-Projeto de Ciência de Dados (CEFET-MG) para analisar o comportamento de leitores
-a partir de uma amostra de resenhas do Goodreads, enriquecida com metadados da
-Open Library e do Google Books.
+Projeto de Ciência de Dados (CEFET-MG) para estudar o comportamento de leitores
+a partir de resenhas do Goodreads, enriquecidas com metadados da Open Library e
+do Google Books. O projeto combina preparação de dados, análise textual,
+sentimento exploratório e uma interface de recomendação baseada em padrões
+agregados das resenhas.
 
-## Objetivo e escopo
+## 1. Pergunta e limites
 
-O objetivo é construir uma base confiável para análise exploratória: preservar as
-informações comportamentais do Goodreads, acrescentar características dos livros
-e documentar a qualidade dos cruzamentos. O resultado não representa todos os
-reviews do dataset original e não garante que todo match externo esteja correto.
+O objetivo é investigar como notas, texto, gênero, popularidade, votos,
+comentários e atividade dos usuários se relacionam nas resenhas. O dataset
+original tem aproximadamente 15 milhões de resenhas; esta execução usa uma
+amostra reprodutível de 10.000 reviews, selecionada por reservoir sampling com
+`seed=42`. Portanto, os resultados descrevem a amostra e não devem ser
+generalizados automaticamente para todos os usuários do Goodreads.
 
-O dataset original tem aproximadamente 15 milhões de resenhas. A amostra de
-10.000 resenhas representa cerca de 0,067% desse volume. Esse tamanho permite
-executar o fluxo completo em ambiente local, reduz custo e chamadas às APIs,
-produz uma base manejável para EDA e torna o processamento reproduzível.
+É importante separar três conceitos:
 
-A seleção usa reservoir sampling em uma única passagem pelo arquivo compactado,
-com `seed=42`. Assim, cada registro tem a mesma oportunidade de entrar na
-amostra sem carregar os aproximadamente 15 milhões de registros na memória. A
-amostra é adequada para exploração e validação do pipeline; conclusões sobre a
-população inteira devem declarar essa limitação.
+- **sentimento textual:** polaridade expressa no texto;
+- **nota Goodreads:** avaliação numérica dada pelo usuário;
+- **predição de nota:** tarefa diferente, que estima a nota a partir de dados.
 
-## Estado atual e encerramento do cruzamento
+Uma nota alta não comprova que todo o texto é positivo. As correlações deste
+projeto são associações observacionais; não demonstram causalidade.
 
-O cruzamento foi concluído para a amostra definida:
+## 2. Cobertura dos dados confiáveis
 
-| Indicador | Resultado |
+O fluxo externo foi encerrado antes da análise principal. Apenas livros com
+`match_status` `MUITO_ALTO`, `ALTO` ou `MEDIO` entram nos resultados principais.
+
+| Indicador | Quantidade |
 | --- | ---: |
-| Reviews Goodreads | 10.000 |
-| Livros únicos | 8.916 |
-| Livros com match Open Library | 7.654 (85,85%) |
-| Livros com match Google Books | 4.424 (49,62%) |
-| Livros com ambas as APIs | 3.852 |
-| Livros com confiança `MUITO_ALTO`, `ALTO` ou `MEDIO` | 7.031 (78,86%) |
+| Reviews na amostra original | 10.000 |
+| Livros únicos na amostra | 8.916 |
+| Matches Open Library | 7.654 (85,85%) |
+| Matches Google Books | 4.424 (49,62%) |
+| Livros com ambas as fontes | 3.852 |
+| Livros com confiança adequada | 7.031 |
 | Reviews com confiança adequada | 8.033 |
-| Reviews com ambas as APIs e confiança adequada | 4.293 |
+| Reviews confiáveis com ambas as APIs | 4.293 |
 
-Reviews são mais numerosos que livros porque um mesmo livro pode receber várias
-resenhas. A diferença de cobertura entre as APIs não indica, sozinha, que uma
-fonte seja melhor: os catálogos, identificadores, edições e políticas de
-preenchimento são diferentes.
+Open Library e Google Books têm coberturas diferentes por causa de edições,
+identificadores e políticas de catálogo. Ausência de match não significa que o
+livro seja inválido. Os registros fracos continuam preservados em
+`processed/04_validacao/` para auditoria.
 
-Esta fase de cruzamento está fechada. A análise principal seguirá somente com
-reviews cujo `match_status` seja `MUITO_ALTO`, `ALTO` ou `MEDIO`. A base completa
-será mantida para auditoria e análise de sensibilidade, mas não será usada como
-referência dos resultados principais porque contém matches baixos, rejeitados e
-livros sem match.
-
-```python
-import pandas as pd
-
-df = pd.read_parquet(
-    "processed/04_validacao/goodreads_reviews_validated_100k.parquet"
-)
-df_confiavel = df[
-    df["match_status"].isin(["MUITO_ALTO", "ALTO", "MEDIO"])
-].copy()
-```
-
-Para comparar as duas APIs, além do filtro de confiança, exigir
-`openlibrary_match == True` e `google_match == True`.
-
-## Justificativa do enriquecimento
-
-O Goodreads é a fonte principal das resenhas e avaliações, mas seus metadados
-não são suficientes para todas as análises. O enriquecimento foi feito no nível
-de livro, usando os `book_id` encontrados na amostra, para evitar consultas de
-livros que não participam da análise e manter o vínculo com cada review.
-
-- **Open Library:** prioriza ISBN-13 e ISBN-10 em lote; sem resultado, tenta
-  título + autor e depois título.
-- **Google Books:** funciona como fonte independente de conferência e de
-  atributos editoriais; prioriza ISBN e encerra a busca quando encontra um
-  resultado adequado.
-
-As consultas usam cache persistente, retentativas para erros de rede e rate limit,
-salvamento incremental e retomada. A ausência de match significa apenas que a
-fonte ou a estratégia não retornou um registro utilizável.
-
-## Validação dos matches
-
-O validador compara, quando disponíveis:
-
-- ISBN-13 e ISBN-10, com maior peso para os identificadores;
-- similaridade de título após normalização de acentos e pontuação;
-- interseção de autores;
-- ano de publicação, com tolerância de até três anos para diferenças de edição;
-- concordância entre Open Library e Google Books.
-
-Cada livro recebe `match_status` em `MUITO_ALTO`, `ALTO`, `MEDIO`, `BAIXO`,
-`REJEITAR` ou `SEM_MATCH`. Os casos fracos ou conflitantes ficam em
-`processed/04_validacao/matches_para_revisao.csv`.
-
-A fila de revisão manual inclui agora todos os livros `BAIXO`, `REJEITAR` e
-`SEM_MATCH`, totalizando 1.885 registros na execução atual:
-
-| Situação | Quantidade |
-| --- | ---: |
-| `SEM_MATCH` nas duas fontes | 690 |
-| `REJEITAR` | 1.067 |
-| `BAIXO` | 128 |
-
-Cada registro recebe `review_priority`, `review_reason`, presença em cada fonte,
-indicadores de ISBN, autores, anos e conflito entre títulos. A prioridade 1 é
-reservada para ausência total de match; prioridades maiores indicam conflito ou
-evidência fraca. Nenhum match é promovido automaticamente durante essa revisão:
-uma eventual correção manual deve ser uma decisão registrada e reproduzível.
-
-## Pipeline
+## 3. Pipeline reproduzível
 
 ```text
 01_amostra_reviews.py
-    -> processed/01_amostra/
+  -> processed/01_amostra/
 02_cruzar_openlibrary.py
-    -> processed/02_openlibrary/
+  -> processed/02_openlibrary/
 03_cruzar_google_books.py
-    -> processed/03_google_books/
+  -> processed/03_google_books/
 04_validar_matches.py
-    -> processed/04_validacao/
-    -> relatório de qualidade e fila de revisão
+  -> processed/04_validacao/
 05_preparar_dados.py
-    -> processed/05_dados_prontos/
+  -> processed/05_dados_prontos/
 06_analisar_reviews.py
-    -> processed/06_analise/
+  -> processed/06_analise/
+07_analise_sentimento.py
+  -> processed/07_sentimento/
+08_gerar_site.py
+  -> site/data/books.json
 ```
 
-As etapas externas trabalham somente com os livros únicos da amostra. A análise
-principal usa exclusivamente o resultado validado e os matches confiáveis.
+O sufixo `100k` dos arquivos é histórico; a execução documentada contém 10.000
+reviews na amostra inicial.
 
-> **Nota:** o sufixo `100k` é histórico e foi mantido para não quebrar o pipeline.
-> A execução documentada contém 10.000 reviews, não 100.000.
+## 4. Preparação e enriquecimento
 
-## Preparação final dos dados
+O script `05_preparar_dados.py` filtra os matches confiáveis, remove duplicatas,
+normaliza datas e números, preserva o texto original e cria indicadores de
+tamanho. Ratings zero são mantidos como ausência de avaliação e não entram em
+métricas que exigem `rating_valido`.
 
-O script `05_preparar_dados.py` é a etapa final antes da análise. Ele usa somente
-matches `MUITO_ALTO`, `ALTO` e `MEDIO` e produz dados limpos, sem duplicatas de
-reviews/livros, com tipos numéricos e datas normalizadas, texto higienizado e
-variáveis de tamanho da resenha.
+Os gêneros são inferidos combinando `popular_shelves` do Goodreads, assuntos da
+Open Library e categorias do Google Books. Fontes externas recebem peso maior,
+são atribuídos no máximo três gêneros e `genre_evidence` registra os rótulos que
+deram suporte à decisão. Na execução atual:
 
-```bash
-python3 05_preparar_dados.py
-```
+- 6.971 dos 7.031 livros têm ao menos um gênero;
+- 6.183 têm três gêneros;
+- 60 ficam como `unclassified`, sem gênero inventado.
 
-As `popular_shelves`, assuntos da Open Library e categorias do Google Books são
-combinados para atribuir no máximo três gêneros específicos por livro. A saída
-preserva `genre_evidence`, isto é, os rótulos que sustentaram a atribuição. Livros
-sem evidência suficiente ficam como `unclassified`, sem gênero inventado.
-
-Na execução atual, 6.971 dos 7.031 livros receberam ao menos um gênero, 6.183
-receberam três gêneros e 60 ficaram sem evidência específica. A ordem dos gêneros
-é determinada pela força e pela quantidade de evidências, com assuntos/categorias
-das fontes externas pesando mais que shelves sociais do Goodreads. Essas
-categorias são variáveis analíticas controladas, não uma taxonomia editorial
-definitiva.
-
-Ratings zero são preservados como ausência de avaliação e não entram em métricas
-que usem `rating_valido`. Reviews em outros idiomas ou com caracteres não ASCII
-continuam na base, mas recebem indicadores para tratamento específico na análise.
-
-Arquivos finais:
+Saídas principais:
 
 - `reviews_prontas.parquet`: reviews limpas e confiáveis;
-- `livros_prontos.parquet`: livros associados à amostra confiável;
-- `base_analise.parquet`: reviews e livros unidos por `book_id`;
-- `generos_livros.csv`: gêneros atribuídos e frequência;
-- `relatorio_preparacao.md`: cobertura e decisões de limpeza.
+- `livros_prontos.parquet`: livros normalizados;
+- `base_analise.parquet`: união review-livro por `book_id`;
+- `generos_livros.csv`: frequência de gêneros.
 
-## Passo 6: refinamento textual e análise inicial
+## 5. Análise exploratória textual
 
-O script `06_analisar_reviews.py` inicia a análise comportamental. Ele preserva
-`review_text` e cria uma versão refinada (`review_text_refined`) sem HTML, URLs,
-caracteres de controle, pontuação e diferenças de caixa. Também calcula
-quantidade de tokens, diversidade lexical, frases e um score de sentimento
-lexical transparente, baseado em um vocabulário pequeno em inglês.
+`06_analisar_reviews.py` preserva `review_text` e cria uma representação para
+EDA com tokens, contagem de palavras e frases, diversidade lexical e score
+lexical. O baseline usa um vocabulário explícito em inglês e uma regra simples
+para negadores nas três palavras anteriores. O score também é normalizado por
+100 palavras.
 
-O score de sentimento é somente uma linha de base: não resolve negação, ironia
-ou contexto. Ele serve para orientar a exploração e deve ser substituído ou
-comparado com uma abordagem de NLP mais robusta antes de conclusões finais.
+Na execução atual, foram processadas 8.033 reviews, das quais 7.983 têm texto
+refinado e 50 não têm tokens utilizáveis. O baseline é interpretável, mas não
+resolve ironia, sarcasmo, escopo complexo, contexto literário ou sentimentos
+mistos. Ele deve orientar a exploração, não ser apresentado como sentimento
+validado.
 
-### Como apresentar a análise no trabalho
+Os resumos incluem análises por nota, gênero e usuário, além de correlações
+Pearson e Spearman com nota, tamanho, votos, comentários e popularidade. Essas
+medidas não controlam confundidores como livro, usuário, gênero ou popularidade.
 
-A análise deve ser apresentada como uma sequência de decisões metodológicas,
-não como uma afirmação de que o score lexical mede perfeitamente o sentimento:
+## 6. Análise de sentimento e validação
 
-1. **Exploração:** descrever distribuição das notas, tamanho das reviews,
-   gêneros, atividade dos usuários e votos/comentários.
-2. **Baseline:** usar o score lexical como referência interpretável, com regra
-   explícita para negadores e score normalizado por 100 palavras.
-3. **Validação:** anotar uma amostra estratificada por nota e comparar o
-   baseline com VADER e TF-IDF + regressão logística ou Linear SVM.
-4. **Avaliação:** manter teste separado e reportar macro-F1, F1 por classe,
-   balanced accuracy, matriz de confusão e análise de erros.
-5. **Robustez:** comparar divisão aleatória com divisões agrupadas por usuário e
-   livro, reduzindo risco de vazamento.
-6. **Interpretação:** chamar os resultados de associação/correlação; o desenho
-   observacional não permite concluir causalidade.
+`07_analise_sentimento.py` cria uma etapa separada, sem substituir os resultados
+anteriores. Ela combina:
 
-A nota Goodreads pode ser usada como proxy para um experimento adicional
-(1–2 = negativo, 3 = neutro, 4–5 = positivo), mas esse rótulo é fraco: uma
-review pode elogiar um aspecto e criticar outro sem que a polaridade textual
-coincida com a nota. O ideal é validar uma amostra com anotação humana e medir
-Cohen's kappa entre anotadores.
+1. baseline lexical do passo 6;
+2. VADER, com `neg`, `neu`, `pos`, `compound` e limiares convencionais
+   `-0,05` e `0,05`;
+3. transformer opcional `siebert/sentiment-roberta-large-english`;
+4. TF-IDF com unigramas e bigramas + regressão logística, condicionado à
+   existência de anotações humanas.
+
+Sem rótulos humanos, o script não calcula acurácia, precisão, recall ou F1. A
+nota pode ser usada como proxy em uma análise complementar, mas não como
+verdade de referência do sentimento.
+
+O script gera uma amostra estratificada e sem a nota original para anotação
+manual. As classes principais são `negative`, `neutral` e `positive`; `mixed` e
+`unclear` podem ser registrados durante a anotação e devem ter tratamento
+documentado antes da avaliação. Recomenda-se que dois anotadores classifiquem
+parte da amostra independentemente. Com as colunas `annotator_a` e
+`annotator_b`, o script calcula concordância observada e Cohen's kappa.
+
+Com anotações preenchidas, o comando abaixo produz métricas em um split
+estratificado separado:
 
 ```bash
-python3 06_analisar_reviews.py
+py -3 07_analise_sentimento.py --annotations caminho\para\anotacoes.csv
 ```
 
-Saídas em `processed/06_analise/`:
+O transformer não é baixado por padrão:
 
-- `reviews_refinadas.parquet`: reviews com variáveis textuais;
-- `resumo_por_nota.csv`: extensão, sentimento, votos e comentários por nota;
-- `resumo_por_genero.csv`: indicadores por gênero principal;
-- `resumo_por_usuario.csv`: atividade agregada por usuário;
-- `correlacoes_com_rating.csv`: correlações exploratórias;
-- `visao_geral_reviews.png` e `relatorio_analise.md`.
+```bash
+py -3 07_analise_sentimento.py --run-transformer
+```
 
-### Referências metodológicas
+Antes de usar um checkpoint, deve-se conferir model card, idioma, domínio,
+licença, limite de entrada e requisitos computacionais. Reviews longas são
+divididas em trechos sobrepostos; a quantidade de trechos é registrada.
+
+## 7. BookPulse: exploração e recomendação
+
+O site em `site/` transforma os resultados agregados em uma interface de
+exploração. Ele permite:
+
+- buscar livros pelo título ou autor;
+- carregar a capa por URL da Open Library, usando ISBN-13 ou ISBN-10;
+- visualizar nota média, quantidade de reviews e extensão média;
+- comparar proporções de resenhas positivas, neutras e negativas;
+- consultar palavras recorrentes no conjunto de reviews;
+- separar termos associados às resenhas positivas e negativas;
+- explorar um grafo interativo ligando o livro às palavras mais frequentes e a
+  outros títulos que compartilham esses termos;
+- recomendar livros com gêneros compartilhados e perfil de sentimento próximo.
+
+As recomendações são exploratórias: não representam uma avaliação editorial,
+não usam o texto bruto das resenhas na página e não implicam que livros
+semelhantes sejam necessariamente melhores. As capas priorizam o endpoint grande (`-L`) da Open Library e fazem fallback
+automático para o tamanho médio (`-M`) ou para uma capa gerada quando não há
+ISBN ou imagem disponível. No grafo, o livro selecionado fica no centro, as
+palavras no primeiro anel e os títulos relacionados no anel externo. A
+espessura das linhas indica a frequência do termo compartilhado.
+
+Para gerar os dados do site e servir a interface:
+
+```bash
+py -3 08_gerar_site.py
+py -3 -m http.server 8000 --directory site
+```
+
+Abra <http://localhost:8000>. O servidor local é necessário porque o navegador
+bloqueia `fetch` de arquivos JSON quando a página é aberta diretamente por
+`file://`.
+
+## 8. Saídas e organização
+
+Os parquets, CSVs e caches em `processed/` são artefatos do pipeline. A
+documentação metodológica foi consolidada neste README para evitar relatórios
+fragmentados e desatualizados. O site mantém apenas os dados agregados
+necessários à visualização.
+
+## 9. Execução completa
+
+```bash
+py -3 -m pip install -r requirements.txt
+py -3 01_amostra_reviews.py
+py -3 02_cruzar_openlibrary.py
+py -3 03_cruzar_google_books.py
+py -3 04_validar_matches.py
+py -3 05_preparar_dados.py
+py -3 06_analisar_reviews.py
+py -3 07_analise_sentimento.py
+py -3 08_gerar_site.py
+```
+
+O Google Books exige `GOOGLE_BOOKS_API_KEY` no ambiente ou em `.env`. As etapas
+externas reaproveitam os caches persistidos em `processed/`.
+
+## 10. Referências metodológicas
 
 - Pang, Lee e Vaithyanathan (2002), classificação supervisionada de reviews:
   <https://doi.org/10.3115/1118693.1118704>
-- Hutto e Gilbert (2014), VADER e regras para linguagem informal:
+- Hutto e Gilbert (2014), VADER:
   <https://doi.org/10.1609/icwsm.v8i1.14550>
-- Socher et al. (2013), composição semântica e Stanford Sentiment Treebank:
+- Socher et al. (2013), composição semântica:
   <https://aclanthology.org/D13-1170/>
-- Devlin et al. (2019), BERT e fine-tuning:
+- Devlin et al. (2019), BERT:
   <https://doi.org/10.18653/v1/N19-1423>
 - scikit-learn, validação cruzada e métricas:
   <https://scikit-learn.org/stable/modules/cross_validation.html> e
   <https://scikit-learn.org/stable/modules/model_evaluation.html>
-- Hugging Face, classificação de texto:
+- Hugging Face, classificação textual:
   <https://huggingface.co/docs/transformers/en/tasks/sequence_classification>
-
-## Arquivos principais
-
-```text
-processed/
-├── 01_amostra/
-├── 02_openlibrary/
-├── 03_google_books/
-├── 04_validacao/
-├── 05_dados_prontos/
-└── 06_analise/
-```
-
-## Execução completa
-
-```bash
-python3 -m pip install -r requirements.txt
-python3 01_amostra_reviews.py
-python3 02_cruzar_openlibrary.py
-python3 03_cruzar_google_books.py
-python3 04_validar_matches.py
-python3 05_preparar_dados.py
-python3 06_analisar_reviews.py
-```
-
-Para o Google Books, configure `GOOGLE_BOOKS_API_KEY` no ambiente ou em `.env`.
-As etapas externas reaproveitam os caches persistidos em `processed/`.
-
-## Próximas análises
-
-- Relação entre nota e sentimento do texto da resenha.
-- Efeito de tamanho, gênero e popularidade do livro sobre a nota.
-- Relação entre extensão da resenha, votos de utilidade e comentários.
-- Comparação entre usuários ocasionais e usuários mais ativos.
