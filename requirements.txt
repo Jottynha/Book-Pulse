@@ -6,3 +6,12 @@ matplotlib>=3.7.0
 scikit-learn>=1.3.0
 plotly>=5.18.0
 vaderSentiment>=3.3.2
+langdetect>=1.0.9
+pytest>=8.0.0
+
+# Opcional: transformer do passo 7 (--run-transformer), testado com torch 2.6
+# (CUDA 12.4) e transformers 5.19. O cache versionado em
+# processed/07_sentimento/transformer_cache.parquet permite reproduzir os
+# resultados sem GPU.
+# torch>=2.2
+# transformers>=5.0
