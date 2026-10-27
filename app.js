@@ -1,4 +1,4 @@
-const state = { books: [], selected: null };
+const state = { books: [], selected: null, active: -1 };
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
@@ -31,14 +31,28 @@ function recommendations(book) {
   const genreSet = new Set(book.genres);
   return state.books.filter((candidate) => candidate.id !== book.id).map((candidate) => {
     const shared = candidate.genres.filter((genre) => genreSet.has(genre)).length;
-    const sentimentDistance = Math.abs(candidate.sentiment_score - book.sentiment_score);
-    return { candidate, score: shared * 4 - sentimentDistance };
+    // sentiment_score é a probabilidade positiva média (0 a 1); sem resenhas em
+    // inglês, a distância fica neutra.
+    const sentimentDistance = book.sentiment_score == null || candidate.sentiment_score == null
+      ? 0.5
+      : Math.abs(candidate.sentiment_score - book.sentiment_score);
+    return { candidate, score: shared * 4 - sentimentDistance * 3 };
   }).sort((a, b) => b.score - a.score || b.candidate.review_count - a.candidate.review_count)
     .slice(0, 4).map((item) => item.candidate);
 }
 
+function notice(book) {
+  if (book.review_count < 3) {
+    return `Perfil baseado em ${book.review_count === 1 ? "uma única resenha" : "duas resenhas"} da amostra: sentimento e palavras refletem poucas pessoas.`;
+  }
+  if (!book.sentiment_reviews) return "Nenhuma resenha em inglês: o perfil de sentimento não foi calculado.";
+  return "";
+}
+
 function showBook(book) {
+  if (!book) return;
   state.selected = book;
+  history.replaceState(null, "", `?livro=${encodeURIComponent(book.id)}`);
   $("#empty-state").hidden = true;
   $("#book-view").hidden = false;
   $("#search").value = book.title;
@@ -53,16 +67,16 @@ function showBook(book) {
   $("#book-reviews").textContent = book.review_count.toLocaleString("pt-BR");
   $("#book-rating").textContent = book.average_rating ? book.average_rating.toFixed(2) : "—";
   $("#book-words").textContent = Math.round(book.average_words).toLocaleString("pt-BR");
+  const warning = notice(book);
+  $("#book-notice").textContent = warning;
+  $("#book-notice").hidden = !warning;
   const positive = book.sentiment.positive * 100;
-  const neutral = book.sentiment.neutral * 100;
   const negative = book.sentiment.negative * 100;
   $("#bar-positive").style.width = `${positive}%`;
-  $("#bar-neutral").style.width = `${neutral}%`;
   $("#bar-negative").style.width = `${negative}%`;
-  $("#positive-pct").textContent = `${positive.toFixed(0)}%`;
-  $("#neutral-pct").textContent = `${neutral.toFixed(0)}%`;
-  $("#negative-pct").textContent = `${negative.toFixed(0)}%`;
-  $("#score").textContent = `${book.sentiment_score > 0 ? "+" : ""}${book.sentiment_score.toFixed(2)}`;
+  $("#positive-pct").textContent = book.sentiment_reviews ? `${positive.toFixed(0)}%` : "—";
+  $("#negative-pct").textContent = book.sentiment_reviews ? `${negative.toFixed(0)}%` : "—";
+  $("#score").textContent = book.sentiment_score == null ? "—" : `${Math.round(book.sentiment_score * 100)}%`;
   $("#common-words").innerHTML = words(book.common_words, true);
   $("#positive-words").innerHTML = words(book.positive_words);
   $("#negative-words").innerHTML = words(book.negative_words);
@@ -144,18 +158,41 @@ function renderGraph(book) {
 function searchBooks(query) {
   const normalized = query.trim().toLocaleLowerCase();
   const results = normalized ? state.books.filter((book) => `${book.title} ${book.author}`.toLocaleLowerCase().includes(normalized)).slice(0, 8) : [];
+  state.active = -1;
   $("#result-count").textContent = normalized ? `${results.length} resultado${results.length === 1 ? "" : "s"}` : "";
-  $("#suggestions").innerHTML = results.map((book) => `<button class="suggestion" data-id="${escapeHtml(book.id)}"><strong>${escapeHtml(book.title)}</strong><small>${escapeHtml(book.author)} · ${book.review_count} resenhas</small></button>`).join("");
+  $("#suggestions").innerHTML = results.map((book) => `<button class="suggestion" data-id="${escapeHtml(book.id)}"><strong>${escapeHtml(book.title)}</strong><small>${escapeHtml(book.author)} · ${book.review_count} resenha${book.review_count === 1 ? "" : "s"}</small></button>`).join("");
   $("#suggestions").hidden = results.length === 0;
   document.querySelectorAll(".suggestion").forEach((item) => item.addEventListener("click", () => showBook(state.books.find((book) => book.id === item.dataset.id))));
+}
+
+function navigateSuggestions(event) {
+  const items = [...document.querySelectorAll(".suggestion")];
+  if (!items.length || $("#suggestions").hidden) return;
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    const step = event.key === "ArrowDown" ? 1 : -1;
+    state.active = (state.active + step + items.length) % items.length;
+    items.forEach((item, index) => item.classList.toggle("active", index === state.active));
+    items[state.active].scrollIntoView({ block: "nearest" });
+  } else if (event.key === "Enter") {
+    event.preventDefault();
+    const target = items[Math.max(0, state.active)];
+    showBook(state.books.find((book) => book.id === target.dataset.id));
+  } else if (event.key === "Escape") {
+    $("#suggestions").hidden = true;
+  }
 }
 
 async function init() {
   const response = await fetch("data/books.json");
   const payload = await response.json();
   state.books = payload.books;
+  $("#footer-count").textContent = `Dados agregados de ${payload.review_count.toLocaleString("pt-BR")} resenhas confiáveis · ${payload.book_count.toLocaleString("pt-BR")} livros`;
   $("#featured").innerHTML = state.books.slice(0, 4).map((book) => renderCard(book, "mini-card")).join("");
   document.querySelectorAll("[data-id]").forEach((card) => card.addEventListener("click", () => showBook(state.books.find((item) => item.id === card.dataset.id))));
   $("#search").addEventListener("input", (event) => searchBooks(event.target.value));
+  $("#search").addEventListener("keydown", navigateSuggestions);
+  const linked = new URLSearchParams(location.search).get("livro");
+  if (linked) showBook(state.books.find((book) => book.id === linked));
 }
 init().catch(() => { $("#empty-state h2").textContent = "Não foi possível carregar os dados"; });

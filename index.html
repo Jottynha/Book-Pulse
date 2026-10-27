@@ -13,7 +13,7 @@
   <header class="hero">
     <nav class="nav shell">
       <a class="brand" href="#">Book<span>Pulse</span></a>
-      <span class="nav-note">Goodreads · análise textual</span>
+      <span class="nav-note">Goodreads · análise textual · <a href="anotar.html">anotar resenhas</a></span>
     </nav>
     <div class="hero-content shell">
       <p class="eyebrow">Descubra o que os leitores dizem</p>
@@ -32,7 +32,7 @@
     <section id="empty-state" class="empty-state">
       <div class="empty-mark">✦</div>
       <h2>Comece por um livro</h2>
-      <p>As recomendações são baseadas nos gêneros e no perfil de sentimento das resenhas analisadas.</p>
+      <p>As recomendações combinam gêneros definidos pelo voto dos leitores e o perfil de sentimento das resenhas.</p>
       <div id="featured" class="featured-grid"></div>
     </section>
 
@@ -44,6 +44,7 @@
           <h2 id="book-title"></h2>
           <p id="book-author" class="author"></p>
           <div id="book-genres" class="chips"></div>
+          <p id="book-notice" class="book-notice" hidden></p>
           <div class="stats">
             <div><strong id="book-reviews"></strong><span>resenhas</span></div>
             <div><strong id="book-rating"></strong><span>nota média</span></div>
@@ -58,9 +59,9 @@
             <div><p class="eyebrow">Clima das resenhas</p><h3>Como os leitores se sentem</h3></div>
             <span id="score" class="score"></span>
           </div>
-          <div class="sentiment-bar"><span id="bar-positive"></span><span id="bar-neutral"></span><span id="bar-negative"></span></div>
-          <div class="legend"><span><i class="dot positive"></i>Positivo <b id="positive-pct"></b></span><span><i class="dot neutral"></i>Neutro <b id="neutral-pct"></b></span><span><i class="dot negative"></i>Negativo <b id="negative-pct"></b></span></div>
-          <p class="method-note">Classificação exploratória baseada no VADER. Ela indica padrões agregados, não a verdade absoluta de cada resenha.</p>
+          <div class="sentiment-bar"><span id="bar-positive"></span><span id="bar-negative"></span></div>
+          <div class="legend"><span><i class="dot positive"></i>Positivo <b id="positive-pct"></b></span><span><i class="dot negative"></i>Negativo <b id="negative-pct"></b></span></div>
+          <p class="method-note">Classificação pelo modelo <i>siebert/sentiment-roberta-large-english</i> (acurácia publicada de 92,5% em resenhas de livros; Hartmann et al., 2023), apenas nas resenhas em inglês. O número ao lado é a probabilidade média de a resenha ser positiva. Indica padrões agregados, não a verdade de cada resenha.</p>
         </section>
         <section class="panel">
           <p class="eyebrow">Vocabulário recorrente</p>
@@ -85,11 +86,11 @@
       <section class="panel graph-panel">
         <div class="section-heading graph-heading">
           <div><p class="eyebrow">Mapa de linguagem</p><h2>As palavras que aproximam livros</h2></div>
-          <p>O tamanho das palavras acompanha sua frequência. Os títulos externos compartilham esses termos nas resenhas.</p>
+          <p>As palavras são as mais características das resenhas deste livro (TF-IDF). Os títulos externos também têm esses termos em suas resenhas.</p>
         </div>
         <div class="graph-key"><span><i class="key-dot book-key"></i>livro selecionado</span><span><i class="key-dot word-key"></i>palavra</span><span><i class="key-dot related-key"></i>título relacionado</span></div>
         <div id="book-graph" class="book-graph" role="img" aria-label="Grafo de palavras e livros relacionados"></div>
-        <p class="method-note">Conexões são exploratórias: contam palavras compartilhadas após a remoção de termos muito frequentes, não representam semelhança editorial ou causalidade.</p>
+        <p class="method-note">Conexões são exploratórias: palavras genéricas de resenha são rebaixadas pelo TF-IDF, e as conexões não representam semelhança editorial ou causalidade.</p>
       </section>
 
       <section class="recommendations">
@@ -98,7 +99,7 @@
       </section>
     </section>
   </main>
-  <footer class="footer"><div class="shell"><span>BookPulse · projeto de Ciência de Dados</span><span>Dados agregados de 8.033 resenhas confiáveis</span></div></footer>
+  <footer class="footer"><div class="shell"><span>BookPulse · projeto de Ciência de Dados</span><span id="footer-count">Dados agregados das resenhas confiáveis</span></div></footer>
   <script src="app.js"></script>
 </body>
 </html>
