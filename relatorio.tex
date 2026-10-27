@@ -41,7 +41,9 @@ resenhas em inglês, a probabilidade positiva do transformer tem associação
 moderada com a nota (Spearman $\rho=0{,}558$), muito acima do VADER
 ($\rho=0{,}238$) e do léxico ($\rho=0{,}253$). Usando a nota como rótulo fraco,
 o transformer atinge acurácia balanceada de 0,910 em validação cruzada agrupada
-por usuário e livro, contra 0,772 de um TF-IDF treinado nos próprios dados. Uma
+por usuário e livro, contra 0,772 de um TF-IDF treinado nos próprios dados. As
+resenhas em outras línguas, traduzidas pelo NLLB-200, atingem 0,831 com o mesmo
+classificador, acima de um modelo multilíngue aplicado ao original (0,713). Uma
 validação com anotação humana independente está em andamento. O projeto inclui
 uma interface que liga livros, palavras características e títulos com perfis
 semelhantes.
@@ -139,8 +141,9 @@ Palavras por resenha (mediana) & 60 & 70\\
 
 Duplicatas de reviews e livros foram removidas, números e datas foram
 normalizados e o texto original foi preservado. O idioma de cada resenha foi
-detectado; as 851 resenhas fora do inglês foram mantidas na base, mas excluídas
-das etapas de sentimento, cujos métodos são para inglês.
+detectado; as 851 resenhas fora do inglês foram mantidas na base, excluídas da
+análise principal de sentimento, cujos métodos são para inglês, e tratadas à
+parte por tradução automática (Seção~\ref{sec:outras-linguas}).
 
 Categorias de editora, como as do Google Books, são definidas para o mercado, e
 não pelo leitor. Os gêneros foram, por isso, atribuídos pelo voto dos leitores:
@@ -186,6 +189,24 @@ pelo mesmo usuário ou livro formam um componente conexo que nunca se divide
 entre treino e teste. Métodos com classe neutra são avaliados nas resenhas em
 que decidem a polaridade, com a cobertura reportada.
 
+\subsection{Resenhas em outras línguas}
+\label{sec:outras-linguas}
+
+As 851 resenhas fora do inglês tiveram o idioma identificado de novo pelo
+fastText LID-176~\cite{fasttext}, mais robusto em textos curtos. Com confiança de
+ao menos 0,5, 94 eram inglês não detectado (como ``Dreadful.'') e foram
+classificadas no original; 442, em 20 línguas (espanhol 148, indonésio 72,
+italiano 50, francês 37, português 34, alemão 32), foram traduzidas para o
+inglês pelo NLLB-200 (600M)~\cite{nllb}, em trechos de até 120 palavras
+separados por frase, e a tradução foi classificada pelo mesmo transformer.
+Ficaram fora 98 resenhas em árabe ou persa transliterados para caracteres
+latinos, detectadas pela ausência de vogais, e 217 de idioma indeterminado
+(links, números, notas). Traduzir e usar um único classificador mantém uma
+escala comum. A alternativa, um modelo multilíngue de três classes aplicado ao
+texto original (XLM-T~\cite{xlmt}), foi avaliada nas mesmas resenhas. A
+avaliação usa o mesmo rótulo fraco, com intervalos de confiança de 95\% por
+bootstrap (2.000 reamostragens) e bootstrap pareado para as diferenças.
+
 \subsection{Validação humana}
 
 A concordância com a nota não valida o sentimento, pois a nota não é a
@@ -203,7 +224,8 @@ agrupado.
 \subsection{Recomendação e visualização}
 
 O site agrega as resenhas por livro. Para cada título, calcula a proporção de
-resenhas positivas e negativas segundo o transformer, apenas em inglês, e as
+resenhas positivas e negativas segundo o transformer, em inglês e nas
+traduzidas, que o site sinaliza no livro, e as
 palavras mais características das resenhas, ranqueadas por TF-IDF com o livro
 como documento. A recomendação combina gêneros compartilhados (voto dos
 leitores) e proximidade da probabilidade positiva média. Livros com menos de
@@ -282,6 +304,34 @@ Classe majoritária & 100\% & 0,500 & 0,000\\
 \end{tabular}
 \end{table}
 
+\subsection{Resenhas em outras línguas}
+
+A Tabela~\ref{tab:traducao} compara os métodos nas 308 resenhas traduzidas com
+rótulo fraco. Classificar a tradução supera o transformer aplicado ao original
+em 0,19 de acurácia balanceada (IC 95\%: 0,12 a 0,27) e o XLM-T em 0,17 (0,07 a
+0,26). O XLM-T também fica abaixo do transformer no inglês (0,749 contra 0,910),
+o que indica que a diferença vem do modelo, e não da língua. As traduzidas ainda
+ficam abaixo do inglês, e só 43 delas são negativas, daí o intervalo largo. A
+inclusão no site acrescenta perfil de sentimento a 473 livros que não tinham
+nenhuma resenha classificável.
+
+\begin{table}[!t]
+\caption{Resenhas traduzidas: acurácia balanceada no rótulo fraco}
+\label{tab:traducao}
+\centering
+\begin{tabular}{lrr}
+\toprule
+\textbf{Método (308 resenhas)} & \textbf{Cobert.} & \textbf{Acur. bal. [IC 95\%]}\\
+\midrule
+Transformer na tradução & 100\% & 0,831 [0,761; 0,893]\\
+XLM-T no original & 77,9\% & 0,713 [0,639; 0,783]\\
+Transformer no original & 100\% & 0,640 [0,572; 0,711]\\
+\midrule
+\multicolumn{2}{l}{Referência: transformer no inglês} & 0,910 [0,896; 0,922]\\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \section{Discussão}
 
 Os resultados são coerentes com a hipótese de que notas mais altas coocorrem
@@ -309,12 +359,14 @@ original, os matches externos favorecem livros populares, e 92\% dos livros
 têm uma única resenha, o que limita os perfis por livro. As estantes do
 Goodreads refletem os usuários da plataforma, e não leitores em geral. A
 recomendação não foi avaliada por métricas de ranking ou estudo com usuários.
+As resenhas traduzidas foram avaliadas só pelo rótulo fraco, com poucas
+negativas, e a qualidade da tradução foi conferida apenas por amostragem.
 
 Como próximos passos, recomenda-se: (i) concluir a anotação independente e
 reportar kappa e métricas por classe; (ii) avaliar um modelo com classe neutra;
 (iii) ampliar a amostra com seleção por livro para o site; (iv) estimar
-intervalos de confiança por bootstrap; e (v) avaliar as recomendações com
-participantes.
+intervalos de confiança por bootstrap também na validação cruzada; e (v)
+avaliar as recomendações com participantes.
 
 \section{Conclusão}
 
@@ -342,6 +394,13 @@ Behavior Chains,'' \textit{Proc. ACM RecSys}, 2018,
 doi: 10.1145/3240323.3240369.
 \bibitem{opusmt} J. Tiedemann e S. Thottingal, ``OPUS-MT -- Building open
 translation services for the World,'' \textit{Proc. EAMT}, 2020.
+\bibitem{nllb} NLLB Team, M. R. Costa-jussà et al., ``No Language Left
+Behind: Scaling Human-Centered Machine Translation,'' arXiv:2207.04672, 2022.
+\bibitem{fasttext} A. Joulin, E. Grave, P. Bojanowski e T. Mikolov, ``Bag of
+Tricks for Efficient Text Classification,'' \textit{Proc. EACL}, 2017.
+\bibitem{xlmt} F. Barbieri, L. Espinosa Anke e J. Camacho-Collados, ``XLM-T:
+Multilingual Language Models in Twitter for Sentiment Analysis and Beyond,''
+\textit{Proc. LREC}, 2022.
 \bibitem{sklearn} F. Pedregosa et al., ``Scikit-learn: Machine Learning in
 Python,'' \textit{JMLR}, vol. 12, pp. 2825--2830, 2011.
 \end{thebibliography}

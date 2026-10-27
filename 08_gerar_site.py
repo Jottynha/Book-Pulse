@@ -15,6 +15,7 @@ from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 
 BASE_DIR = Path(__file__).resolve().parent
 ENTRADA = BASE_DIR / "processed" / "07_sentimento" / "reviews_sentimento.parquet"
+OUTROS_IDIOMAS = BASE_DIR / "processed" / "10_traducao" / "reviews_outros_idiomas.parquet"
 SAIDA = BASE_DIR / "data" / "books.json"
 
 # Stopwords do inglês mais termos genéricos de qualquer resenha de livro.
@@ -28,6 +29,7 @@ STOPWORDS = set(ENGLISH_STOP_WORDS) | {
     # inglês (espanhol, português, italiano, francês, alemão e indonésio).
     "que", "del", "los", "las", "por", "para", "una", "con", "como", "pero",
     "mas", "muy", "uma", "nao", "mais", "muito", "isso", "ele", "ela", "che",
+    "com", "foi", "livro", "libro",
     "per", "non", "della", "sono", "les", "des", "est", "pas", "une", "qui",
     "dans", "und", "der", "die", "das", "ist", "nicht", "ein", "eine", "yang",
     "dan", "ini", "itu", "tidak", "dengan", "aku", "saya",
@@ -89,6 +91,37 @@ def palavras(
     return [{"word": palavra, "count": contador[palavra]} for palavra, _ in pontuadas[:limite]]
 
 
+def rotular_sentimento(df: pd.DataFrame, outros: pd.DataFrame | None) -> pd.DataFrame:
+    """Rótulo usado no site e sua origem.
+
+    Resenhas em inglês usam o transformer do passo 7. Se o passo 10 rodou,
+    entram também as que o fastText reconheceu como inglês ("recovered") e as
+    traduzidas automaticamente ("translated"), que o site sinaliza.
+    """
+    df = df.copy()
+    ingles = df["text_is_english"] & df["transformer_label"].isin(["positive", "negative"])
+    df["site_label"] = df["transformer_label"].where(ingles)
+    df["site_prob"] = df["transformer_positive_prob"].where(ingles)
+    df["site_source"] = pd.Series("english", index=df.index).where(ingles)
+    if outros is None:
+        return df
+    outros = outros.set_index("review_id")
+    rota = df["review_id"].map(outros["route"])
+    recuperada = rota.eq("english") & df["transformer_label"].isin(["positive", "negative"])
+    df.loc[recuperada, "site_label"] = df.loc[recuperada, "transformer_label"]
+    df.loc[recuperada, "site_prob"] = df.loc[recuperada, "transformer_positive_prob"]
+    df.loc[recuperada, "site_source"] = "recovered"
+    traduzida = rota.eq("translate") & df["review_id"].map(outros["translated_label"]).isin(
+        ["positive", "negative"]
+    )
+    df.loc[traduzida, "site_label"] = df.loc[traduzida, "review_id"].map(outros["translated_label"])
+    df.loc[traduzida, "site_prob"] = df.loc[traduzida, "review_id"].map(
+        outros["translated_positive_prob"]
+    )
+    df.loc[traduzida, "site_source"] = "translated"
+    return df
+
+
 def agregar(df: pd.DataFrame) -> list[dict[str, object]]:
     frequencia, total_livros = frequencia_documental(df)
     livros: list[dict[str, object]] = []
@@ -96,10 +129,11 @@ def agregar(df: pd.DataFrame) -> list[dict[str, object]]:
         livro = grupo.iloc[0]
         validas = grupo[grupo["rating_valido"].notna()]
         total = len(grupo)
-        # O transformer é um modelo para inglês: as demais resenhas entram na
-        # contagem e nas palavras, mas não no perfil de sentimento.
-        ingles = grupo[grupo["text_is_english"] & grupo["transformer_label"].isin(["positive", "negative"])]
-        proporcoes = ingles["transformer_label"].value_counts(normalize=True)
+        classificadas = grupo[grupo["site_label"].notna()]
+        proporcoes = classificadas["site_label"].value_counts(normalize=True)
+        # As palavras das listas positiva e negativa vêm do texto original;
+        # resenhas traduzidas ficam fora para não misturar idiomas.
+        originais = classificadas[classificadas["site_source"].ne("translated")]
         entry = {
             "id": str(book_id),
             "title": texto(livro.get("title")) or "Título não informado",
@@ -116,21 +150,22 @@ def agregar(df: pd.DataFrame) -> list[dict[str, object]]:
             "average_rating": round(float(validas["rating_valido"].mean()), 2) if not validas.empty else None,
             "review_count": total,
             "average_words": round(float(grupo["refined_word_count"].mean()), 1),
-            "sentiment_reviews": len(ingles),
+            "sentiment_reviews": len(classificadas),
+            "translated_reviews": int(classificadas["site_source"].eq("translated").sum()),
             "sentiment": {
                 "positive": round(float(proporcoes.get("positive", 0)), 3),
                 "negative": round(float(proporcoes.get("negative", 0)), 3),
             },
             "sentiment_score": (
-                round(float(ingles["transformer_positive_prob"].mean()), 3) if len(ingles) else None
+                round(float(classificadas["site_prob"].mean()), 3) if len(classificadas) else None
             ),
             "common_words": palavras(grupo["review_tokens"], frequencia, total_livros),
             "positive_words": palavras(
-                ingles.loc[ingles["transformer_label"] == "positive", "review_tokens"],
+                originais.loc[originais["site_label"] == "positive", "review_tokens"],
                 frequencia, total_livros,
             ),
             "negative_words": palavras(
-                ingles.loc[ingles["transformer_label"] == "negative", "review_tokens"],
+                originais.loc[originais["site_label"] == "negative", "review_tokens"],
                 frequencia, total_livros,
             ),
         }
@@ -141,7 +176,10 @@ def agregar(df: pd.DataFrame) -> list[dict[str, object]]:
 def main() -> None:
     if not ENTRADA.exists():
         raise FileNotFoundError(f"Arquivo de sentimento não encontrado: {ENTRADA}")
-    df = pd.read_parquet(ENTRADA)
+    outros = pd.read_parquet(OUTROS_IDIOMAS) if OUTROS_IDIOMAS.exists() else None
+    if outros is None:
+        print(f"Aviso: {OUTROS_IDIOMAS} não encontrado; só resenhas em inglês terão sentimento.")
+    df = rotular_sentimento(pd.read_parquet(ENTRADA), outros)
     SAIDA.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "generated_from": str(ENTRADA.relative_to(BASE_DIR)),
@@ -149,6 +187,9 @@ def main() -> None:
         "review_count": int(len(df)),
         "sentiment_model": "siebert/sentiment-roberta-large-english",
         "english_review_count": int(df["text_is_english"].sum()),
+        "sentiment_review_count": int(df["site_label"].notna().sum()),
+        "translated_review_count": int(df["site_source"].eq("translated").sum()),
+        "translation_model": "facebook/nllb-200-distilled-600M" if outros is not None else None,
         "books": agregar(df),
     }
     SAIDA.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")

@@ -35,6 +35,11 @@ def site():
     return carregar("08_gerar_site.py")
 
 
+@pytest.fixture(scope="module")
+def traducao():
+    return carregar("10_traducao_reviews.py")
+
+
 def test_generos_por_palavra_inteira(preparar):
     assert preparar.generos_do_rotulo("teen fiction") == {"young_adult"}
     assert preparar.generos_do_rotulo("eighteenth century") == set()
@@ -128,3 +133,44 @@ def test_palavras_tfidf_rebaixam_termos_de_todo_livro(site):
     # "series" aparece mais vezes, mas está em todo livro (idf = 0) e cai para trás.
     assert [item["word"] for item in resultado] == ["katniss", "series"]
     assert resultado[1]["count"] == 3  # a contagem exibida continua bruta
+
+
+@pytest.mark.parametrize(
+    ("texto", "esperado"),
+    [
+        ("kmlt rwyh qryh Zlmh lmHmd kml Hsyn w lq byn wbyn lktb", True),
+        ("slwb jyd lkn qS@ mml@ ...", True),
+        ("Este libro es un ensayo deslumbrante sobre el amor.", False),
+        ("Dreadful.", False),
+        ("539 - 2016", False),
+    ],
+)
+def test_detecta_arabe_transliterado(traducao, texto, esperado):
+    assert traducao.transliterado(texto) is esperado
+
+
+def test_rotas_de_traducao(traducao):
+    assert traducao.definir_rota("Muy divertido", "es", 0.95, 0.5) == "translate"
+    assert traducao.definir_rota("Dreadful.", "en", 0.99, 0.5) == "english"
+    assert traducao.definir_rota("3.5", "en", 0.2, 0.5) == "undetermined"
+    assert traducao.definir_rota("texto", "xx", 0.99, 0.5) == "undetermined"
+    assert traducao.definir_rota("", "es", 0.99, 0.5) == "undetermined"
+
+
+def test_segmentar_respeita_limite_e_ordem(traducao):
+    texto = "Uma frase curta. " + " ".join(f"p{i}" for i in range(250)) + ". Fim."
+    trechos = traducao.segmentar(texto, limite=120)
+    assert all(len(trecho.split()) <= 120 for trecho in trechos)
+    assert " ".join(trechos).split() == texto.split()
+
+
+def test_rotulo_fraco_e_acuracia_balanceada(traducao):
+    import numpy as np
+
+    rotulo = traducao.rotulo_fraco(pd.Series([1.0, 3.0, 5.0, None]))
+    assert rotulo.tolist()[0] == "negative" and rotulo.tolist()[2] == "positive"
+    assert pd.isna(rotulo.iloc[1]) and pd.isna(rotulo.iloc[3])
+    verdade = np.array(["negative", "positive", "positive", "positive"])
+    previsto = np.array(["negative", "positive", "negative", "negative"])
+    # recall negativo 1,0 e positivo 1/3
+    assert traducao.acuracia_balanceada(verdade, previsto) == pytest.approx(2 / 3)

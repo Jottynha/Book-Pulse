@@ -31,8 +31,8 @@ function recommendations(book) {
   const genreSet = new Set(book.genres);
   return state.books.filter((candidate) => candidate.id !== book.id).map((candidate) => {
     const shared = candidate.genres.filter((genre) => genreSet.has(genre)).length;
-    // sentiment_score é a probabilidade positiva média (0 a 1); sem resenhas em
-    // inglês, a distância fica neutra.
+    // sentiment_score é a probabilidade positiva média (0 a 1); sem resenhas
+    // classificáveis, a distância fica neutra.
     const sentimentDistance = book.sentiment_score == null || candidate.sentiment_score == null
       ? 0.5
       : Math.abs(candidate.sentiment_score - book.sentiment_score);
@@ -45,7 +45,15 @@ function notice(book) {
   if (book.review_count < 3) {
     return `Perfil baseado em ${book.review_count === 1 ? "uma única resenha" : "duas resenhas"} da amostra: sentimento e palavras refletem poucas pessoas.`;
   }
-  if (!book.sentiment_reviews) return "Nenhuma resenha em inglês: o perfil de sentimento não foi calculado.";
+  if (!book.sentiment_reviews) return "Nenhuma resenha classificável: o perfil de sentimento não foi calculado.";
+  if (book.translated_reviews) {
+    const n = book.translated_reviews;
+    const total = book.sentiment_reviews;
+    const quais = n === total
+      ? (total === 1 ? "A única resenha classificada foi traduzida" : "Todas as resenhas classificadas foram traduzidas")
+      : `${n} de ${total} resenhas classificadas ${n === 1 ? "foi traduzida" : "foram traduzidas"}`;
+    return `${quais} automaticamente para o inglês antes da classificação, que acerta menos nesses casos.`;
+  }
   return "";
 }
 
