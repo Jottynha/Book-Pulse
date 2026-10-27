@@ -160,9 +160,16 @@ input { background: transparent; border: 0; color: var(--ink); flex: 1; font: in
 .footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; padding: 25px 0; }
 .footer-content { align-items: center; display: flex; gap: 18px; justify-content: space-between; }
 .credits-button { background: transparent; border: 1px solid var(--line); border-radius: 100px; color: var(--teal-dark); cursor: pointer; font: inherit; font-weight: 700; padding: 9px 13px; transition: .2s ease; }
-.credits-button:hover, .credits-button[aria-expanded="true"] { background: #e3efeb; border-color: #b8d5cc; }
-.credits-panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); margin-top: 18px; padding: 18px 22px; }
-.credits-panel p { margin: 6px 0 12px; }
+.credits-button:hover { background: #e3efeb; border-color: #b8d5cc; }
+.credits-modal[hidden] { display: none; }
+.credits-modal { inset: 0; position: fixed; z-index: 20; }
+.credits-backdrop { background: rgba(15, 30, 32, .58); inset: 0; position: absolute; }
+.credits-dialog { background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 24px 80px rgba(15, 30, 32, .28); left: 50%; max-width: 520px; padding: 34px; position: absolute; top: 50%; transform: translate(-50%, -50%); width: calc(100% - 36px); }
+.credits-dialog h2 { font-size: 34px; margin: 0 0 10px; }
+.credits-dialog > p:not(.eyebrow) { color: var(--muted); line-height: 1.55; margin: 0 0 22px; }
+.modal-close { background: #eef2ee; border: 0; border-radius: 50%; color: var(--ink); cursor: pointer; font-size: 25px; height: 34px; line-height: 1; position: absolute; right: 18px; top: 18px; width: 34px; }
+.modal-close:hover { background: #dce8e3; }
+.modal-open { overflow: hidden; }
 .credit-links { display: flex; flex-wrap: wrap; gap: 9px 18px; }
 .credit-links a { color: var(--teal); font-weight: 600; text-decoration: none; }
 .credit-links a:hover { text-decoration: underline; }
@@ -174,6 +181,6 @@ input { background: transparent; border: 0; color: var(--ink); flex: 1; font: in
 @keyframes content-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
 @media (max-width: 800px) { .featured-grid, .book-grid { grid-template-columns: repeat(2, 1fr); } .analysis-grid, .reviews-list { grid-template-columns: 1fr; } .section-heading { align-items: start; flex-direction: column; gap: 6px; } .book-graph svg { min-height: 330px; } .annotation-callout { align-items: flex-start; flex-wrap: wrap; } .annotation-button { margin-left: 64px; } }
-@media (max-width: 520px) { .shell { padding-left: 18px; padding-right: 18px; } .hero { padding-bottom: 55px; } .nav-note { display: none; } .annotation-link { font-size: 0; padding: 12px; } .annotation-link span { font-size: 18px; } .book-header { align-items: flex-start; flex-direction: column; } .featured-grid, .book-grid { gap: 12px; } .stats { gap: 15px; } .panel { padding: 20px; } .footer-content { align-items: flex-start; flex-direction: column; gap: 10px; } .nav-actions { gap: 5px; } .nav-button { padding: 10px 12px; } .annotation-callout { padding: 18px; } .annotation-button { margin-left: 0; } }
+@media (max-width: 520px) { .shell { padding-left: 18px; padding-right: 18px; } .hero { padding-bottom: 55px; } .nav-note { display: none; } .annotation-link { font-size: 0; padding: 12px; } .annotation-link span { font-size: 18px; } .book-header { align-items: flex-start; flex-direction: column; } .featured-grid, .book-grid { gap: 12px; } .stats { gap: 15px; } .panel { padding: 20px; } .footer-content { align-items: flex-start; flex-direction: column; gap: 10px; } .nav-actions { gap: 5px; } .nav-button { padding: 10px 12px; } .annotation-callout { padding: 18px; } .annotation-button { margin-left: 0; } .credits-dialog { padding: 28px 22px; } }
 .book-notice { background: #fbf1dc; border-radius: 8px; color: #7a5a17; font-size: 12px; line-height: 1.5; margin: 14px 0 0; max-width: 560px; padding: 8px 12px; }
 .suggestion.active { background: #edf5f2; }

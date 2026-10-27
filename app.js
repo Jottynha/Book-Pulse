@@ -265,12 +265,11 @@ function hideGraphTooltip() {
 window.addEventListener("blur", hideGraphTooltip);
 window.addEventListener("scroll", hideGraphTooltip, { passive: true });
 
-function toggleCredits() {
-  const button = $("#credits-button");
-  const panel = $("#credits-panel");
-  const expanded = button.getAttribute("aria-expanded") === "true";
-  button.setAttribute("aria-expanded", String(!expanded));
-  panel.hidden = expanded;
+function setCredits(open) {
+  const modal = $("#credits-modal");
+  modal.hidden = !open;
+  document.body.classList.toggle("modal-open", open);
+  if (open) $("#credits-close").focus();
 }
 
 function searchBooks(query) {
@@ -313,7 +312,14 @@ async function init() {
   $("#search").addEventListener("keydown", navigateSuggestions);
   $("#home-button").addEventListener("click", () => showHome());
   $("#back-button").addEventListener("click", () => history.back());
-  $("#credits-button").addEventListener("click", toggleCredits);
+  $("#credits-button").addEventListener("click", () => setCredits(true));
+  $("#credits-close").addEventListener("click", () => setCredits(false));
+  $("#credits-modal").addEventListener("click", (event) => {
+    if (event.target.matches("[data-close-credits]")) setCredits(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !$("#credits-modal").hidden) setCredits(false);
+  });
   window.addEventListener("popstate", () => {
     const linked = new URLSearchParams(location.search).get("livro");
     const book = linked ? state.books.find((item) => item.id === linked) : null;

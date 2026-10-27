@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BookPulse [padrões nas resenha]</title>
+  <title>BookPulse</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
@@ -135,18 +136,23 @@
     <div class="shell footer-content">
       <span>BookPulse · projeto de Ciência de Dados</span>
       <span id="footer-count">Dados agregados das resenhas confiáveis</span>
-      <button id="credits-button" class="credits-button" type="button" aria-expanded="false" aria-controls="credits-panel"><span aria-hidden="true">ⓘ</span> Suporte e créditos</button>
+      <button id="credits-button" class="credits-button" type="button" aria-haspopup="dialog"><span aria-hidden="true">ⓘ</span> Suporte e créditos</button>
     </div>
-    <div id="credits-panel" class="credits-panel shell" hidden>
-      <strong>BookPulse</strong>
+  </footer>
+  <div id="credits-modal" class="credits-modal" hidden>
+    <div class="credits-backdrop" data-close-credits></div>
+    <section class="credits-dialog" role="dialog" aria-modal="true" aria-labelledby="credits-title">
+      <button id="credits-close" class="modal-close" type="button" aria-label="Fechar créditos">×</button>
+      <p class="eyebrow">BookPulse</p>
+      <h2 id="credits-title">Suporte e créditos</h2>
       <p>Projeto acadêmico de análise de resenhas, sentimento e relações entre livros.</p>
       <div class="credit-links">
         <a href="https://github.com/Jottynha" target="_blank" rel="noreferrer">João Pedro Rodrigues Silva · GitHub ↗</a>
         <a href="https://github.com/Ak4ai" target="_blank" rel="noreferrer">Henrique de Freitas Araujo (Ak4ai) · GitHub ↗</a>
         <a href="https://github.com/Jottynha/Book-Pulse/issues" target="_blank" rel="noreferrer">Reportar problema ou sugerir melhoria ↗</a>
       </div>
-    </div>
-  </footer>
+    </section>
+  </div>
   <script src="app.js"></script>
 </body>
 </html>

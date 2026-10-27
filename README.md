@@ -228,6 +228,8 @@ transforma os resultados agregados em uma interface de exploração. Ele permite
   explicativo destacado;
 - consultar suporte e créditos no rodapé, com links para os GitHub dos
   contribuidores e para as issues do projeto;
+- abrir os créditos em um modal acessível e usar o favicon ilustrado de livros
+  incluído na raiz para a publicação no GitHub Pages;
 - carregar a capa por URL da Open Library, usando ISBN-13 ou ISBN-10;
 - visualizar nota média, quantidade de reviews e extensão média;
 - comparar a distribuição das notas, a quantidade de textos disponíveis e
