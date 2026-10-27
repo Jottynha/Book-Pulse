@@ -24,6 +24,9 @@ body { margin: 0; color: var(--ink); background: var(--paper); font-family: "DM 
 .nav-button:hover:not(:disabled) { background: #fff; transform: translateY(-1px); }
 .nav-button:disabled { cursor: not-allowed; opacity: .4; }
 .nav-actions .nav-note { color: var(--muted); text-decoration: none; }
+.annotation-link, .annotation-button { align-items: center; background: var(--teal); border: 0; border-radius: 100px; color: #fff; display: inline-flex; font-size: 13px; font-weight: 700; gap: 7px; padding: 12px 17px; text-decoration: none; transition: .2s ease; }
+.annotation-link { box-shadow: 0 7px 18px rgba(14,119,112,.2); }
+.annotation-link:hover, .annotation-button:hover { background: var(--teal-dark); box-shadow: 0 10px 24px rgba(14,119,112,.25); transform: translateY(-2px); }
 .hero-content { padding-top: 54px; }
 .detail-mode .hero { background: linear-gradient(135deg, #e1eeeb 0%, #f7f5f0 70%); padding-bottom: 30px; }
 .detail-mode .hero-content { padding-top: 8px; }
@@ -49,6 +52,11 @@ input { background: transparent; border: 0; color: var(--ink); flex: 1; font: in
 .empty-state h2 { font-size: 34px; margin: 7px 0; }
 .empty-state > p { color: var(--muted); margin: 0 auto 34px; }
 .featured-grid, .book-grid { display: grid; gap: 18px; grid-template-columns: repeat(4, 1fr); text-align: left; }
+.annotation-callout { align-items: center; background: linear-gradient(110deg, #e1efeb, #f8efe2); border: 1px solid #cfe2dc; border-radius: 16px; display: flex; gap: 18px; margin: 38px auto 0; max-width: 930px; padding: 22px 26px; text-align: left; }
+.annotation-icon { align-items: center; background: var(--teal); border-radius: 50%; color: #fff; display: flex; flex: 0 0 46px; font-size: 25px; height: 46px; justify-content: center; }
+.annotation-callout h3 { font-size: 22px; margin: 0 0 5px; }
+.annotation-callout p:not(.eyebrow) { color: #5e6f70; font-size: 13px; line-height: 1.45; margin: 0; }
+.annotation-button { margin-left: auto; white-space: nowrap; }
 .mini-card, .recommend-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; cursor: pointer; overflow: hidden; transition: .2s ease; }
 .mini-card:hover, .recommend-card:hover { box-shadow: var(--shadow); transform: translateY(-4px); }
 .mini-cover, .recommend-cover { background: #e3e7e1; height: 190px; overflow: hidden; }
@@ -128,7 +136,8 @@ input { background: transparent; border: 0; color: var(--ink); flex: 1; font: in
 .node-label { fill: var(--ink); font-size: 11px; font-weight: 700; pointer-events: none; text-anchor: middle; transform: translateY(3px); }
 .graph-node.word .node-label { font-size: 10px; }
 .node-count { fill: #fff; font-size: 9px; pointer-events: none; text-anchor: middle; transform: translateY(15px); }
-.graph-tooltip { align-items: center; background: rgba(29,39,48,.96); border: 1px solid rgba(255,255,255,.18); border-radius: 10px; box-shadow: 0 15px 35px rgba(29,39,48,.22); color: #fff; display: flex; gap: 10px; max-width: 245px; padding: 10px 12px; pointer-events: none; position: absolute; transform: translateZ(0); z-index: 4; }
+.graph-tooltip { align-items: center; background: rgba(29,39,48,.96); border: 1px solid rgba(255,255,255,.18); border-radius: 10px; box-shadow: 0 15px 35px rgba(29,39,48,.22); color: #fff; display: flex; gap: 10px; max-width: 245px; padding: 10px 12px; pointer-events: none; position: fixed; transform: translateZ(0); transition: opacity .12s ease; z-index: 10; }
+.graph-tooltip[hidden] { display: none; }
 .graph-tooltip img { border-radius: 4px; height: 52px; object-fit: cover; width: 36px; }
 .graph-tooltip div { display: grid; gap: 3px; }
 .graph-tooltip strong { font-family: "Playfair Display", serif; font-size: 13px; line-height: 1.15; }
@@ -149,7 +158,14 @@ input { background: transparent; border: 0; color: var(--ink); flex: 1; font: in
 .book-grid { grid-template-columns: repeat(4, 1fr); }
 .recommend-cover { height: 210px; }
 .footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; padding: 25px 0; }
-.footer .shell { display: flex; justify-content: space-between; }
+.footer-content { align-items: center; display: flex; gap: 18px; justify-content: space-between; }
+.credits-button { background: transparent; border: 1px solid var(--line); border-radius: 100px; color: var(--teal-dark); cursor: pointer; font: inherit; font-weight: 700; padding: 9px 13px; transition: .2s ease; }
+.credits-button:hover, .credits-button[aria-expanded="true"] { background: #e3efeb; border-color: #b8d5cc; }
+.credits-panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); margin-top: 18px; padding: 18px 22px; }
+.credits-panel p { margin: 6px 0 12px; }
+.credit-links { display: flex; flex-wrap: wrap; gap: 9px 18px; }
+.credit-links a { color: var(--teal); font-weight: 600; text-decoration: none; }
+.credit-links a:hover { text-decoration: underline; }
 @keyframes graph-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes edge-draw { to { stroke-dashoffset: 0; } }
 @keyframes cover-reveal { from { opacity: 0; transform: scale(1.08); } to { opacity: 1; transform: scale(1); } }
@@ -157,7 +173,7 @@ input { background: transparent; border: 0; color: var(--ink); flex: 1; font: in
 .panel, .recommendations, .book-header { animation: content-rise .6s ease-out both; }
 @keyframes content-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
-@media (max-width: 800px) { .featured-grid, .book-grid { grid-template-columns: repeat(2, 1fr); } .analysis-grid, .reviews-list { grid-template-columns: 1fr; } .section-heading { align-items: start; flex-direction: column; gap: 6px; } .book-graph svg { min-height: 330px; } }
-@media (max-width: 520px) { .shell { padding-left: 18px; padding-right: 18px; } .hero { padding-bottom: 55px; } .nav-note { display: none; } .book-header { align-items: flex-start; flex-direction: column; } .featured-grid, .book-grid { gap: 12px; } .stats { gap: 15px; } .panel { padding: 20px; } .footer .shell { flex-direction: column; gap: 6px; } .nav-actions { gap: 5px; } .nav-button { padding: 10px 12px; } }
+@media (max-width: 800px) { .featured-grid, .book-grid { grid-template-columns: repeat(2, 1fr); } .analysis-grid, .reviews-list { grid-template-columns: 1fr; } .section-heading { align-items: start; flex-direction: column; gap: 6px; } .book-graph svg { min-height: 330px; } .annotation-callout { align-items: flex-start; flex-wrap: wrap; } .annotation-button { margin-left: 64px; } }
+@media (max-width: 520px) { .shell { padding-left: 18px; padding-right: 18px; } .hero { padding-bottom: 55px; } .nav-note { display: none; } .annotation-link { font-size: 0; padding: 12px; } .annotation-link span { font-size: 18px; } .book-header { align-items: flex-start; flex-direction: column; } .featured-grid, .book-grid { gap: 12px; } .stats { gap: 15px; } .panel { padding: 20px; } .footer-content { align-items: flex-start; flex-direction: column; gap: 10px; } .nav-actions { gap: 5px; } .nav-button { padding: 10px 12px; } .annotation-callout { padding: 18px; } .annotation-button { margin-left: 0; } }
 .book-notice { background: #fbf1dc; border-radius: 8px; color: #7a5a17; font-size: 12px; line-height: 1.5; margin: 14px 0 0; max-width: 560px; padding: 8px 12px; }
 .suggestion.active { background: #edf5f2; }

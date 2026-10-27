@@ -208,6 +208,8 @@ function renderGraph(book) {
     node.addEventListener("click", open);
     node.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); } });
   });
+  $("#book-graph").addEventListener("mouseleave", hideGraphTooltip);
+  $("#book-graph").addEventListener("pointerleave", hideGraphTooltip);
 }
 
 function graphTooltipContent(node, selected) {
@@ -232,13 +234,43 @@ function showGraphTooltip(event, node, selected) {
 function moveGraphTooltip(event) {
   const tooltip = $("#graph-tooltip");
   if (tooltip.hidden) return;
-  const bounds = $("#book-graph").getBoundingClientRect();
-  tooltip.style.left = `${event.clientX - bounds.left + 16}px`;
-  tooltip.style.top = `${event.clientY - bounds.top + 16}px`;
+  const gap = 12;
+  const margin = 8;
+  const width = tooltip.offsetWidth;
+  const height = tooltip.offsetHeight;
+  const candidates = [
+    { left: event.clientX + gap, top: event.clientY + gap },
+    { left: event.clientX - width - gap, top: event.clientY + gap },
+    { left: event.clientX + gap, top: event.clientY - height - gap },
+    { left: event.clientX - width - gap, top: event.clientY - height - gap },
+  ].map((position) => ({
+    left: Math.max(margin, Math.min(position.left, window.innerWidth - width - margin)),
+    top: Math.max(margin, Math.min(position.top, window.innerHeight - height - margin)),
+  }));
+  const nodeRects = [...$("#book-graph").querySelectorAll(".graph-node")].map((node) => node.getBoundingClientRect());
+  const overlaps = (position, rect) => nodeRects.some((node) =>
+    position.left < node.right && position.left + width > node.left &&
+    position.top < node.bottom && position.top + height > node.top
+  );
+  const best = candidates.find((position) => !overlaps(position));
+  const chosen = best || candidates[0];
+  tooltip.style.left = `${chosen.left}px`;
+  tooltip.style.top = `${chosen.top}px`;
 }
 
 function hideGraphTooltip() {
   $("#graph-tooltip").hidden = true;
+}
+
+window.addEventListener("blur", hideGraphTooltip);
+window.addEventListener("scroll", hideGraphTooltip, { passive: true });
+
+function toggleCredits() {
+  const button = $("#credits-button");
+  const panel = $("#credits-panel");
+  const expanded = button.getAttribute("aria-expanded") === "true";
+  button.setAttribute("aria-expanded", String(!expanded));
+  panel.hidden = expanded;
 }
 
 function searchBooks(query) {
@@ -281,6 +313,7 @@ async function init() {
   $("#search").addEventListener("keydown", navigateSuggestions);
   $("#home-button").addEventListener("click", () => showHome());
   $("#back-button").addEventListener("click", () => history.back());
+  $("#credits-button").addEventListener("click", toggleCredits);
   window.addEventListener("popstate", () => {
     const linked = new URLSearchParams(location.search).get("livro");
     const book = linked ? state.books.find((item) => item.id === linked) : null;

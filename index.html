@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BookPulse — padrões nas resenhas</title>
+  <title>BookPulse [padrões nas resenha]</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
@@ -16,7 +16,7 @@
       <div class="nav-actions">
         <button id="home-button" class="nav-button" type="button" aria-label="Voltar ao início"><span aria-hidden="true">⌂</span> Início</button>
         <button id="back-button" class="nav-button" type="button" aria-label="Voltar à página anterior" disabled><span aria-hidden="true">←</span> Voltar</button>
-        <a class="nav-note" href="anotar.html">Goodreads · anotar resenhas</a>
+        <a class="annotation-link" href="anotar.html"><span aria-hidden="true">✎</span> Anotar resenhas</a>
       </div>
     </nav>
     <div class="hero-content shell">
@@ -38,6 +38,15 @@
       <h2>Comece por um livro</h2>
       <p>As recomendações combinam gêneros definidos pelo voto dos leitores e o perfil de sentimento das resenhas.</p>
       <div id="featured" class="featured-grid"></div>
+      <aside class="annotation-callout">
+        <div class="annotation-icon" aria-hidden="true">✎</div>
+        <div>
+          <p class="eyebrow">Participe da pesquisa</p>
+          <h3>Ajude a validar a leitura dos sentimentos</h3>
+          <p>Na ferramenta de anotação, você classifica resenhas como positivas ou negativas. Essas respostas ajudam a comparar o modelo automático com a interpretação humana.</p>
+        </div>
+        <a class="annotation-button" href="anotar.html">Abrir ferramenta <span aria-hidden="true">→</span></a>
+      </aside>
     </section>
 
     <section id="book-view" class="book-page" hidden>
@@ -122,7 +131,22 @@
       </section>
     </section>
   </main>
-  <footer class="footer"><div class="shell"><span>BookPulse · projeto de Ciência de Dados</span><span id="footer-count">Dados agregados das resenhas confiáveis</span></div></footer>
+  <footer class="footer">
+    <div class="shell footer-content">
+      <span>BookPulse · projeto de Ciência de Dados</span>
+      <span id="footer-count">Dados agregados das resenhas confiáveis</span>
+      <button id="credits-button" class="credits-button" type="button" aria-expanded="false" aria-controls="credits-panel"><span aria-hidden="true">ⓘ</span> Suporte e créditos</button>
+    </div>
+    <div id="credits-panel" class="credits-panel shell" hidden>
+      <strong>BookPulse</strong>
+      <p>Projeto acadêmico de análise de resenhas, sentimento e relações entre livros.</p>
+      <div class="credit-links">
+        <a href="https://github.com/Jottynha" target="_blank" rel="noreferrer">João Pedro Rodrigues Silva · GitHub ↗</a>
+        <a href="https://github.com/Ak4ai" target="_blank" rel="noreferrer">Henrique de Freitas Araujo (Ak4ai) · GitHub ↗</a>
+        <a href="https://github.com/Jottynha/Book-Pulse/issues" target="_blank" rel="noreferrer">Reportar problema ou sugerir melhoria ↗</a>
+      </div>
+    </div>
+  </footer>
   <script src="app.js"></script>
 </body>
 </html>

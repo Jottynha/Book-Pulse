@@ -224,6 +224,10 @@ transforma os resultados agregados em uma interface de exploração. Ele permite
   livro por link direto (`?livro=<book_id>`);
 - navegar entre a página inicial e os livros selecionados com os controles
   `Início` e `Voltar`, além do histórico do navegador;
+- acessar, na página inicial, a ferramenta de anotação humana por um bloco
+  explicativo destacado;
+- consultar suporte e créditos no rodapé, com links para os GitHub dos
+  contribuidores e para as issues do projeto;
 - carregar a capa por URL da Open Library, usando ISBN-13 ou ISBN-10;
 - visualizar nota média, quantidade de reviews e extensão média;
 - comparar a distribuição das notas, a quantidade de textos disponíveis e
