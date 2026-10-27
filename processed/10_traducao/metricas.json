@@ -1,0 +1,128 @@
+{
+  "label": "rótulo fraco: nota 1-2 = negative, 4-5 = positive, nota 3 excluída",
+  "routes": {
+    "translate": 442,
+    "undetermined": 217,
+    "transliterated": 98,
+    "english": 94
+  },
+  "translated_languages": {
+    "es": 148,
+    "id": 72,
+    "it": 50,
+    "fr": 37,
+    "pt": 34,
+    "de": 32,
+    "tr": 16,
+    "nl": 15,
+    "fi": 11,
+    "da": 5,
+    "sv": 4,
+    "cs": 4,
+    "pl": 3,
+    "et": 3,
+    "tl": 2,
+    "ca": 2,
+    "ro": 1,
+    "af": 1,
+    "hu": 1,
+    "ms": 1
+  },
+  "models": {
+    "language_id": "fastText lid.176.ftz",
+    "translation": "facebook/nllb-200-distilled-600M",
+    "classifier": "siebert/sentiment-roberta-large-english",
+    "multilingual": "cardiffnlp/twitter-xlm-roberta-base-sentiment"
+  },
+  "min_lid_prob": 0.5,
+  "bootstrap": 2000,
+  "seed": 42,
+  "evaluation": [
+    {
+      "set": "english",
+      "method": "siebert",
+      "rows": 5485,
+      "negatives": 744,
+      "coverage": 1.0,
+      "balanced_accuracy": 0.9097,
+      "ci_low": 0.8964,
+      "ci_high": 0.9221,
+      "f1_negative": 0.8217,
+      "negative_share_pred": 0.1466
+    },
+    {
+      "set": "english",
+      "method": "xlm_t_multilingual",
+      "rows": 5485,
+      "negatives": 744,
+      "coverage": 0.9313,
+      "balanced_accuracy": 0.7486,
+      "ci_low": 0.7358,
+      "ci_high": 0.7619,
+      "f1_negative": 0.411,
+      "negative_share_pred": 0.4548
+    },
+    {
+      "set": "recovered_english",
+      "method": "siebert",
+      "rows": 67,
+      "negatives": 9,
+      "coverage": 1.0,
+      "balanced_accuracy": 0.8113,
+      "ci_low": 0.6483,
+      "ci_high": 0.9407,
+      "f1_negative": 0.56,
+      "negative_share_pred": 0.2388
+    },
+    {
+      "set": "translated",
+      "method": "siebert_on_translation",
+      "rows": 308,
+      "negatives": 43,
+      "coverage": 1.0,
+      "balanced_accuracy": 0.8309,
+      "ci_low": 0.7612,
+      "ci_high": 0.8932,
+      "f1_negative": 0.6346,
+      "negative_share_pred": 0.1981
+    },
+    {
+      "set": "translated",
+      "method": "siebert_on_original",
+      "rows": 308,
+      "negatives": 43,
+      "coverage": 1.0,
+      "balanced_accuracy": 0.6401,
+      "ci_low": 0.5715,
+      "ci_high": 0.7113,
+      "f1_negative": 0.4058,
+      "negative_share_pred": 0.0844
+    },
+    {
+      "set": "translated",
+      "method": "xlm_t_multilingual",
+      "rows": 308,
+      "negatives": 43,
+      "coverage": 0.7792,
+      "balanced_accuracy": 0.7133,
+      "ci_low": 0.6389,
+      "ci_high": 0.7828,
+      "f1_negative": 0.4138,
+      "negative_share_pred": 0.45
+    }
+  ],
+  "paired_differences": {
+    "translation_vs_original": {
+      "rows": 308,
+      "difference": 0.1907,
+      "ci_low": 0.1153,
+      "ci_high": 0.2712
+    },
+    "translation_vs_multilingual": {
+      "rows": 240,
+      "difference": 0.1674,
+      "ci_low": 0.0745,
+      "ci_high": 0.2618
+    }
+  }
+}

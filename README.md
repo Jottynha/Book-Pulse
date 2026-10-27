@@ -85,6 +85,8 @@ com tendência a títulos mais populares.
   -> data/books.json
 09_predicao_nota.py
   -> processed/09_predicao_nota/
+10_traducao_reviews.py
+  -> processed/10_traducao/
 ```
 
 O sufixo `100k` dos arquivos é histórico; a execução documentada contém 10.000
@@ -156,8 +158,8 @@ medidas não controlam confundidores como livro, usuário, gênero ou popularida
    split agrupado por usuário e livro.
 
 O idioma de cada review é detectado (`text_language`): os métodos são para
-inglês, então 851 reviews em outras línguas ficam fora da amostra de anotação,
-da predição de nota e do perfil de sentimento do site.
+inglês, então 851 reviews em outras línguas ficam fora da amostra de anotação
+e da predição de nota. O passo 10 (seção 7) as trata por tradução.
 
 Nas 7.182 reviews em inglês, o transformer classifica 80,9% como positivas. Sua
 probabilidade positiva tem correlação de Spearman ρ = 0,558 com a nota, contra
@@ -202,6 +204,43 @@ porque quase todo usuário aparece uma vez. `termos_tfidf.csv` lista os termos
 mais informativos (negativos: *not, didn't, boring, disappointing,
 unfortunately*; positivos: *loved, great, enjoyed, amazing, wonderful*).
 
+### Reviews em outras línguas
+
+`10_traducao_reviews.py` trata as 851 reviews fora do inglês. O idioma é
+identificado de novo pelo fastText LID-176, mais robusto que o langdetect em
+textos curtos, e cada review segue uma rota:
+
+| Rota | Reviews | Tratamento |
+| --- | ---: | --- |
+| Tradução | 442 | NLLB-200 (600M) traduz para o inglês; o siebert classifica a tradução |
+| Inglês não detectado | 94 | textos curtos em inglês ("Dreadful."); o siebert classifica o original |
+| Árabe/persa transliterado | 98 | escrita latina sem vogais (`qr't wSf jmyl`), fora de todos os modelos; excluídas |
+| Indeterminado | 217 | links, números, notas ("3.5"), idioma incerto; excluídas |
+
+As traduzidas cobrem 20 línguas (espanhol 148, indonésio 72, italiano 50,
+francês 37, português 34, alemão 32...). Traduzir e usar o mesmo classificador
+mantém uma escala única para todas as reviews. A alternativa, um modelo
+multilíngue direto no original (`cardiffnlp/twitter-xlm-roberta-base-sentiment`),
+foi comparada nas mesmas reviews. Rótulo fraco, IC de 95% por bootstrap:
+
+| Conjunto | Método | Reviews | Acurácia balanceada [IC 95%] | F1 negativa |
+| --- | --- | ---: | ---: | ---: |
+| Inglês | siebert | 5.485 | 0,910 [0,896; 0,922] | 0,822 |
+| Inglês | XLM-T multilíngue (93% de cobertura) | 5.485 | 0,749 [0,736; 0,762] | 0,411 |
+| Traduzidas | siebert na tradução | 308 | 0,831 [0,761; 0,893] | 0,635 |
+| Traduzidas | siebert no original | 308 | 0,640 [0,572; 0,711] | 0,406 |
+| Traduzidas | XLM-T no original (78% de cobertura) | 308 | 0,713 [0,639; 0,783] | 0,414 |
+| Inglês não detectado | siebert | 67 | 0,811 [0,648; 0,941] | 0,560 |
+
+Na comparação pareada, traduzir ganha 0,19 [0,12; 0,27] de acurácia
+balanceada sobre o siebert no original e 0,17 [0,07; 0,26] sobre o XLM-T. O
+XLM-T fica abaixo do siebert também no inglês: a diferença vem do modelo, não da
+língua. As traduzidas ainda ficam abaixo do inglês (0,83 contra 0,91), e só 43
+delas são negativas, daí o intervalo largo. Por isso a análise principal
+segue só em inglês, e o site inclui as traduzidas com aviso. A confiança da
+tradução (log-probabilidade média por token) e uma amostra de 40 traduções
+para conferência manual ficam em `processed/10_traducao/`.
+
 ## 8. Coerência metodológica e estado dos resultados
 
 O projeto distingue preparação, exploração, inferência e produto visual. Os
@@ -225,7 +264,7 @@ transforma os resultados agregados em uma interface de exploração. Ele permite
 - carregar a capa por URL da Open Library, usando ISBN-13 ou ISBN-10;
 - visualizar nota média, quantidade de reviews e extensão média;
 - comparar proporções de resenhas positivas e negativas segundo o transformer,
-  apenas nas resenhas em inglês;
+  nas resenhas em inglês e nas traduzidas pelo passo 10 (com aviso no livro);
 - consultar as palavras mais características das resenhas de cada livro,
   ranqueadas por TF-IDF (o livro é o documento), e os termos de resenhas
   positivas e negativas;
@@ -265,6 +304,7 @@ py -3 05_preparar_dados.py
 py -3 06_analisar_reviews.py
 py -3 07_analise_sentimento.py --run-transformer
 py -3 09_predicao_nota.py
+py -3 10_traducao_reviews.py
 py -3 08_gerar_site.py
 py -3 -m pytest tests
 ```
@@ -274,7 +314,9 @@ externas reaproveitam os caches persistidos em `processed/`. O arquivo
 `goodreads_books.json.gz` (2 GB) está em
 <https://mcauleylab.ucsd.edu/public_datasets/gdrive/goodreads/goodreads_books.json.gz>.
 O transformer exige `torch` e `transformers` (ver `requirements.txt`); sem eles,
-`--run-transformer` reaproveita `transformer_cache.parquet`.
+`--run-transformer` reaproveita `transformer_cache.parquet`. O passo 10 também
+exige `fasttext-wheel`, `sentencepiece` e `protobuf`; o modelo LID-176 (1 MB) é
+baixado para `models/` e as traduções ficam em cache em `processed/10_traducao/`.
 
 ## 11. Referências metodológicas
 
@@ -290,6 +332,12 @@ O transformer exige `torch` e `transformers` (ver `requirements.txt`); sem eles,
   <https://doi.org/10.18653/v1/N19-1423>
 - Wan e McAuley (2018), UCSD Book Graph:
   <https://doi.org/10.1145/3240323.3240369>
+- NLLB Team, Costa-jussà et al. (2022), NLLB-200:
+  <https://arxiv.org/abs/2207.04672>
+- Joulin et al. (2017), fastText e identificação de idioma:
+  <https://aclanthology.org/E17-2068/>
+- Barbieri, Espinosa Anke e Camacho-Collados (2022), XLM-T:
+  <https://aclanthology.org/2022.lrec-1.27/>
 - Tiedemann e Thottingal (2020), OPUS-MT:
   <https://aclanthology.org/2020.eamt-1.61/>
 - scikit-learn, validação cruzada e métricas:
