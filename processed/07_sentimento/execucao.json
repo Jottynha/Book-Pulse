@@ -1,14 +1,14 @@
 {
-  "python": "3.14.7",
-  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.22631-SP0",
   "arguments": {
-    "input": "C:\\Users\\joao.silva\\Documents\\GitHub\\Book-Review-Data-Analysis\\processed\\05_dados_prontos\\base_analise.parquet",
-    "output": "C:\\Users\\joao.silva\\Documents\\GitHub\\Book-Review-Data-Analysis\\processed\\07_sentimento",
+    "input": "C:\\Users\\Henrique\\Videos\\CEFET\\CD\\projeto\\Book-Pulse\\processed\\05_dados_prontos\\base_analise.parquet",
+    "output": "C:\\Users\\Henrique\\Videos\\CEFET\\CD\\projeto\\Book-Pulse\\processed\\07_sentimento",
     "seed": 42,
     "annotation_size": 600,
     "batch_size": 16,
     "annotations": null,
-    "run_transformer": false,
+    "run_transformer": true,
     "transformer_model": "siebert/sentiment-roberta-large-english"
   },
   "rows": 8033,
@@ -59,11 +59,16 @@
     "genre_evidence",
     "genre_count",
     "genre_assignment_status",
+    "genre_source",
+    "genre_reader_votes",
+    "catalog_genres",
     "match_status_book",
     "text_for_inference",
     "text_is_empty",
     "text_sha256",
     "exact_duplicate_text",
+    "text_language",
+    "text_is_english",
     "review_text_refined",
     "review_tokens",
     "refined_word_count",
@@ -80,6 +85,10 @@
     "vader_neu",
     "vader_pos",
     "vader_compound",
-    "vader_label"
+    "vader_label",
+    "transformer_label",
+    "transformer_positive_prob",
+    "transformer_score",
+    "transformer_chunks"
   ]
 }

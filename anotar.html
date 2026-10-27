@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BookPulse — anotação de sentimento</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="anotar.css">
+</head>
+<body class="annotate-page">
+  <header class="annotate-header">
+    <nav class="nav shell">
+      <a class="brand" href="index.html">Book<span>Pulse</span></a>
+      <span class="nav-note">Anotação humana de sentimento</span>
+    </nav>
+  </header>
+
+  <main class="shell annotate-main">
+    <section id="start" class="start-panel panel">
+      <p class="eyebrow">Validação do classificador</p>
+      <h1 class="start-title">Leia a resenha.<br><em>Diga o que ela sente.</em></h1>
+      <p class="start-copy">Cada cartão é uma resenha da amostra estratificada, sem nota e sem a resposta de nenhum modelo. Arraste para a direita se for positiva e para a esquerda se for negativa. Os outros casos têm botões próprios.</p>
+      <label class="field">
+        <span>Seu nome (identifica o arquivo exportado)</span>
+        <input id="annotator" type="text" autocomplete="off" maxlength="30" placeholder="ex.: henrique">
+      </label>
+      <div class="start-actions">
+        <button id="start-button" class="primary-button" type="button">Começar</button>
+        <label class="file-button">Carregar outro CSV<input id="csv-file" type="file" accept=".csv"></label>
+      </div>
+      <p id="load-status" class="method-note"></p>
+      <details class="guide">
+        <summary>Como anotar</summary>
+        <ul>
+          <li><b>Positiva:</b> avaliação global predominantemente favorável.</li>
+          <li><b>Negativa:</b> avaliação global predominantemente desfavorável.</li>
+          <li><b>Neutra:</b> sem avaliação clara ou só descreve o enredo.</li>
+          <li><b>Mista:</b> elogios e críticas relevantes sem predominância.</li>
+          <li><b>Incerta:</b> texto insuficiente, ilegível, ironia impossível de decidir.</li>
+        </ul>
+        <p>Considere negação (“not good” não é positivo). Uma crítica pontual não torna negativa uma resenha globalmente favorável. Julgue pelo texto <b>original</b>; a tradução é apenas apoio.</p>
+        <p>Os dois anotadores devem fazer as <b>mesmas</b> resenhas, na ordem em que aparecem, sem conversar sobre elas. Assim o script calcula o Cohen's kappa.</p>
+      </details>
+    </section>
+
+    <section id="workspace" class="workspace" hidden>
+      <div class="progress-row">
+        <div>
+          <p class="eyebrow">Anotador: <span id="annotator-name"></span></p>
+          <p class="progress-text"><strong id="done-count">0</strong> anotadas · resenha <span id="position"></span> de <span id="total"></span> <span id="sync-status"></span></p>
+        </div>
+        <div class="progress-actions">
+          <button id="export" class="ghost-button" type="button">Exportar CSV</button>
+          <button id="switch" class="ghost-button" type="button">Trocar anotador</button>
+        </div>
+      </div>
+      <div class="progress-track" aria-hidden="true"><span id="progress-bar"></span><i id="goal-mark" title="Meta mínima: 100"></i></div>
+
+      <div class="deck">
+        <article id="card" class="review-card" tabindex="0" aria-live="polite">
+          <div class="stamp stamp-positive">Positiva</div>
+          <div class="stamp stamp-negative">Negativa</div>
+          <div class="card-meta"><span id="card-id"></span><span id="card-current-label"></span></div>
+          <div id="finished" class="finished" hidden><h2>Amostra concluída</h2><p class="method-note">Exporte o CSV para usar no pipeline. Use “Voltar” para revisar.</p></div>
+          <div class="card-scroll">
+            <p class="text-label">Original</p>
+            <div id="original" class="review-text"></div>
+            <div id="translation-block" class="translation-block">
+              <p class="text-label">Tradução automática <span id="translation-status"></span></p>
+              <div id="translation" class="review-text translated"></div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="choice-row">
+        <button class="choice negative" data-label="negative" type="button"><span>←</span>Negativa</button>
+        <button class="choice neutral" data-label="neutral" type="button"><span>↑</span>Neutra</button>
+        <button class="choice mixed" data-label="mixed" type="button"><span>↓</span>Mista</button>
+        <button class="choice unclear" data-label="unclear" type="button"><span>U</span>Incerta</button>
+        <button class="choice positive" data-label="positive" type="button"><span>→</span>Positiva</button>
+      </div>
+      <div class="secondary-row">
+        <button id="undo" class="ghost-button" type="button">↶ Voltar (Z)</button>
+        <label class="doubt"><input id="doubt" type="checkbox"> Tive dúvida (D)</label>
+        <label class="doubt"><input id="show-translation" type="checkbox" checked> Mostrar tradução (T)</label>
+        <select id="model-choice" aria-label="Modelo de tradução">
+          <option value="big">OPUS-MT big en→pt (melhor, ~520 MB)</option>
+          <option value="compact">OPUS-MT en→ROMANCE (leve, ~120 MB)</option>
+        </select>
+      </div>
+      <p class="method-note">Cada classificação é enviada para a planilha compartilhada assim que você decide; sem conexão, ela espera numa fila e é reenviada. “Exportar CSV” continua disponível como cópia de segurança. A tradução roda localmente no navegador; o modelo é baixado uma vez e fica em cache.</p>
+    </section>
+  </main>
+  <script src="anotar.js"></script>
+</body>
+</html>

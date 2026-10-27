@@ -1,0 +1,89 @@
+{
+  "label": "rótulo fraco: nota 1-2 = negative, 4-5 = positive, nota 3 excluída",
+  "rows": 5485,
+  "languages": "english_only",
+  "class_counts": {
+    "positive": 4741,
+    "negative": 744
+  },
+  "groups": 4515,
+  "largest_group_rows": 15,
+  "folds": 5,
+  "seed": 42,
+  "grouped_cv": {
+    "transformer": {
+      "coverage_mean": 1.0,
+      "coverage_std": 0.0,
+      "accuracy_mean": 0.9497,
+      "accuracy_std": 0.009,
+      "balanced_accuracy_mean": 0.9097,
+      "balanced_accuracy_std": 0.0228,
+      "macro_f1_mean": 0.8962,
+      "macro_f1_std": 0.0187,
+      "f1_negative_mean": 0.8216,
+      "f1_negative_std": 0.0322
+    },
+    "tfidf_logistic_regression": {
+      "coverage_mean": 1.0,
+      "coverage_std": 0.0,
+      "accuracy_mean": 0.897,
+      "accuracy_std": 0.0083,
+      "balanced_accuracy_mean": 0.7716,
+      "balanced_accuracy_std": 0.0165,
+      "macro_f1_mean": 0.7764,
+      "macro_f1_std": 0.0152,
+      "f1_negative_mean": 0.6123,
+      "f1_negative_std": 0.026
+    },
+    "vader": {
+      "coverage_mean": 0.957,
+      "coverage_std": 0.0052,
+      "accuracy_mean": 0.8358,
+      "accuracy_std": 0.0112,
+      "balanced_accuracy_mean": 0.6692,
+      "balanced_accuracy_std": 0.0065,
+      "macro_f1_mean": 0.6608,
+      "macro_f1_std": 0.0106,
+      "f1_negative_mean": 0.4172,
+      "f1_negative_std": 0.0144
+    },
+    "lexical": {
+      "coverage_mean": 0.7429,
+      "coverage_std": 0.0098,
+      "accuracy_mean": 0.8966,
+      "accuracy_std": 0.01,
+      "balanced_accuracy_mean": 0.6334,
+      "balanced_accuracy_std": 0.0139,
+      "macro_f1_mean": 0.663,
+      "macro_f1_std": 0.0178,
+      "f1_negative_mean": 0.3825,
+      "f1_negative_std": 0.0304
+    },
+    "maioria": {
+      "coverage_mean": 1.0,
+      "coverage_std": 0.0,
+      "accuracy_mean": 0.8644,
+      "accuracy_std": 0.0004,
+      "balanced_accuracy_mean": 0.5,
+      "balanced_accuracy_std": 0.0,
+      "macro_f1_mean": 0.4636,
+      "macro_f1_std": 0.0001,
+      "f1_negative_mean": 0.0,
+      "f1_negative_std": 0.0
+    }
+  },
+  "tfidf_ungrouped_cv": {
+    "tfidf_logistic_regression": {
+      "coverage_mean": 1.0,
+      "coverage_std": 0.0,
+      "accuracy_mean": 0.8983,
+      "accuracy_std": 0.0038,
+      "balanced_accuracy_mean": 0.774,
+      "balanced_accuracy_std": 0.0115,
+      "macro_f1_mean": 0.779,
+      "macro_f1_std": 0.0081,
+      "f1_negative_mean": 0.6166,
+      "f1_negative_std": 0.0146
+    }
+  }
+}

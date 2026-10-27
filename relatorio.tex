@@ -4,6 +4,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[brazilian]{babel}
 \usepackage{booktabs}
+\usepackage{graphicx}
 \usepackage{hyperref}
 \usepackage{amsmath}
 \usepackage{url}
@@ -19,7 +20,7 @@ Contagem, MG, Brasil\\
 \IEEEauthorblockN{Henrique de Freitas Araujo}
 \IEEEauthorblockA{\textit{Campus V, Centro Federal de Educação Tecnológica de Minas Gerais}\\
 Contagem, MG, Brasil\\
-\href{mailto:ricogames@gmail.com}{ricogames@gmail.com}}
+\href{mailto:ricosgames.henrique@gmail.com}{ricosgames.henrique@gmail.com}}
 }
 
 \begin{document}
@@ -31,15 +32,19 @@ relações entre notas, texto, gêneros, popularidade e atividade de leitores em
 resenhas do Goodreads. Uma amostra de 10.000 resenhas foi enriquecida com
 metadados da Open Library e do Google Books, validada por critérios de
 identificadores, títulos, autores e anos, e reduzida a 8.033 resenhas
-associadas a livros com correspondência externa confiável. A análise textual
-combina variáveis de tamanho, um baseline lexical interpretável e VADER como
-inferência exploratória. Os resultados mostram associação positiva moderada
-entre a nota e o score lexical normalizado (Pearson $r=0{,}182$; Spearman
-$\rho=0{,}247$), mas não permitem afirmar causalidade nem validar o sentimento
-sem anotações humanas. Como produto aplicado, o projeto inclui uma interface
-que liga livros, palavras recorrentes e títulos com perfis semelhantes. O
-artigo documenta também as limitações da amostra, dos métodos lexicais e da
-recomendação baseada em similaridade agregada.
+associadas a livros com correspondência externa confiável. Os gêneros foram
+atribuídos pelo voto dos leitores nas estantes do Goodreads, e não pelas
+categorias de editora; as duas classificações concordam no gênero principal em
+apenas 49,7\% dos livros. A análise de sentimento compara um baseline lexical,
+o VADER e um transformer RoBERTa com acurácia publicada em resenhas. Nas 7.182
+resenhas em inglês, a probabilidade positiva do transformer tem associação
+moderada com a nota (Spearman $\rho=0{,}558$), muito acima do VADER
+($\rho=0{,}238$) e do léxico ($\rho=0{,}253$). Usando a nota como rótulo fraco,
+o transformer atinge acurácia balanceada de 0,910 em validação cruzada agrupada
+por usuário e livro, contra 0,772 de um TF-IDF treinado nos próprios dados. Uma
+validação com anotação humana independente está em andamento. O projeto inclui
+uma interface que liga livros, palavras características e títulos com perfis
+semelhantes.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -54,34 +59,38 @@ que pode conter elogios, críticas, descrição de enredo, ironia e sentimentos
 mistos. A nota atribuída pelo leitor não é equivalente à polaridade expressa
 no texto. Esta distinção é central para evitar que uma análise classifique
 automaticamente uma resenha como positiva apenas porque ela recebeu cinco
-estrelas.
+estrelas~\cite{pang2002}.
 
 O objetivo deste trabalho é construir uma base confiável para estudar o
 comportamento de leitores e produzir uma exploração visual dos padrões de
 linguagem associados aos livros. As perguntas orientadoras são: (i) como
-extensão, sentimento lexical, votos e comentários se associam à nota; (ii) que
+extensão, sentimento, votos e comentários se associam à nota; (ii) que
 diferenças aparecem entre gêneros e perfis de atividade; e (iii) como palavras
-recorrentes podem ser utilizadas para encontrar livros com padrões textuais
+características podem ser utilizadas para encontrar livros com padrões textuais
 semelhantes?
 
 As contribuições são: um pipeline com validação de cruzamentos bibliográficos;
-uma etapa textual auditável que preserva o texto original; uma especificação
-de validação humana para futura avaliação supervisionada; e o BookPulse, uma
+gêneros definidos pelo voto dos leitores, comparados à classificação de
+catálogo; a comparação de três métodos de sentimento com validação cruzada
+agrupada; um protocolo e uma ferramenta de anotação humana; e o BookPulse, uma
 interface que visualiza palavras compartilhadas entre livros.
 
 \section{Dados e escopo}
 
-O dataset original contém aproximadamente 15 milhões de resenhas. Para tornar a
-execução local e reproduzível, foi utilizada uma amostra de 10.000 registros
-por reservoir sampling em uma passagem, com semente 42. A amostra não deve ser
-interpretada como representação perfeita da população total.
+O UCSD Book Graph contém aproximadamente 15,7 milhões de resenhas e 2,36
+milhões de livros~\cite{wan2018}. Para tornar a execução local e reproduzível,
+foi utilizada uma amostra de 10.000 resenhas por reservoir sampling em uma
+passagem, com semente 42. A amostragem por resenha é adequada às perguntas
+sobre resenhas, mas faz com que 92\% dos livros apareçam uma única vez: perfis
+por livro são, portanto, ruidosos.
 
 Os livros foram enriquecidos no nível de $book\_id$. Open Library foi consultada
 priorizando ISBN-13 e ISBN-10, seguida por buscas de título e autor. Google Books
 foi usado como fonte independente de metadados. O validador combinou
 concordância de ISBN, similaridade de título, autores, ano de publicação e
 concordância entre fontes. Apenas os estados \texttt{MUITO\_ALTO},
-\texttt{ALTO} e \texttt{MEDIO} foram utilizados na análise principal.
+\texttt{ALTO} e \texttt{MEDIO} foram utilizados na análise principal
+(Tabela~\ref{tab:cobertura}).
 
 \begin{table}[!t]
 \caption{Cobertura observada após a validação}
@@ -95,168 +104,246 @@ Reviews na amostra & 10.000\\
 Livros únicos na amostra & 8.916\\
 Livros com match confiável & 7.031\\
 Reviews com match confiável & 8.033\\
+Reviews confiáveis em inglês & 7.182\\
 Usuários na base final & 7.350\\
 Reviews com duplicata textual exata & 66\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\section{Metodologia}
-
-\subsection{Preparação e gêneros}
-
-Duplicatas de reviews e livros foram removidas, números e datas foram
-normalizados e o texto original foi preservado. Reviews vazias não aparecem na
-base bruta final; 50 registros, contudo, não produzem tokens úteis no
-refinamento lexical. Esse caso é diferente de ausência de texto e é reportado
-separadamente.
-
-Os gêneros foram inferidos combinando \texttt{popular\_shelves}, assuntos da
-Open Library e categorias do Google Books. Evidências externas receberam maior
-peso que shelves sociais, com no máximo três gêneros por livro. Foram atribuídos
-ao menos um gênero a 6.971 dos 7.031 livros; 60 livros permaneceram como
-\texttt{unclassified}.
-
-\subsection{Representações textuais}
-
-O texto original foi mantido para auditoria. Para a análise exploratória,
-HTML, URLs e caracteres de controle foram tratados, e foram extraídos tokens,
-quantidade de palavras, frases e razão de vocabulário único. O baseline lexical
-usa um vocabulário pequeno e explícito em inglês. Para cada token, a polaridade
-é $+1$, $-1$ ou zero; um negador nas três posições anteriores inverte a
-polaridade. O score normalizado é:
-\[
-s_{100} = 100 \frac{N_{+}-N_{-}}{N_{\text{tokens}}}.
-\]
-
-Esse procedimento é interpretável, mas não modela adequadamente ironia,
-composição semântica, contexto literário ou sentimentos mistos.
-
-\subsection{VADER e validação proposta}
-
-VADER foi incluído como segundo método exploratório, produzindo
-\texttt{neg}, \texttt{neu}, \texttt{pos} e \texttt{compound}. Foram utilizados
-os limiares convencionais $-0{,}05$ e $0{,}05$. O método foi desenvolvido para
-linguagem informal de redes sociais; sua adequação ao domínio de livros não foi
-presumida.
-
-O projeto gera uma amostra estratificada, sem a nota original, para anotação
-humana. As classes são \texttt{negative}, \texttt{neutral} e
-\texttt{positive}; \texttt{mixed} e \texttt{unclear} podem ser registrados
-durante a anotação. Com rótulos humanos, a etapa seguinte prevê a comparação
-entre baseline, VADER e TF-IDF com unigramas/bigramas e regressão logística.
-As métricas planejadas são macro-F1, F1 por classe, balanced accuracy, matriz
-de confusão e Cohen's kappa entre anotadores. Como as anotações ainda não foram
-preenchidas, nenhuma acurácia de classificador é reivindicada neste trabalho.
-
-\subsection{Recomendação e visualização}
-
-O site agrega as resenhas por livro. Para cada título, calcula proporções das
-classes VADER, palavras recorrentes em todas as resenhas e palavras
-recorrentes em subconjuntos positivo e negativo. A recomendação combina
-gêneros compartilhados, proximidade do score de sentimento e quantidade de
-reviews como critério secundário. O grafo apresenta o livro no centro, palavras
-no primeiro anel e títulos que compartilham esses termos no anel externo.
-
-Essa recomendação é uma prova de conceito exploratória, não uma avaliação
-editorial nem um sistema validado por usuários. Capas são carregadas por URL
-da Open Library a partir de ISBN, com fallback para tamanhos menores e imagem
-gerada.
-
-\section{Resultados}
-
-\subsection{Perfil da base}
-
-A base final contém 8.033 reviews, 7.031 livros e 7.350 usuários. Entre as
-7.753 reviews com nota válida, a média foi 3,87, com mediana 4. Os dez
-gêneros mais frequentes foram liderados por fantasy (1.032 reviews), romance
-(935), science fiction (700), children (696) e mystery (659).
-
-\subsection{Sentimento exploratório}
-
-O VADER classificou 6.042 reviews (75,2\%) como positivas, 723 (9,0\%) como
-neutras e 1.268 (15,8\%) como negativas. Esses valores são resultados de
-inferência exploratória, não estimativas de prevalência validada.
+O filtro de confiança introduz viés de seleção (Tabela~\ref{tab:selecao}): os
+livros mantidos são muito mais populares e as resenhas descartadas têm nota
+média ligeiramente maior, possivelmente porque títulos de nicho são mais
+difíceis de localizar nos catálogos. Os resultados valem, portanto, para livros
+com metadados externos confiáveis, com tendência a títulos populares.
 
 \begin{table}[!t]
-\caption{Nota e indicadores textuais}
-\label{tab:nota}
+\caption{Resenhas mantidas e descartadas pelo filtro de match}
+\label{tab:selecao}
 \centering
-\begin{tabular}{rrrr}
+\begin{tabular}{lrr}
 \toprule
-\textbf{Nota} & \textbf{Reviews} & \textbf{Palavras} & \textbf{Compound}\\
+\textbf{Indicador} & \textbf{Mantidas} & \textbf{Descartadas}\\
 \midrule
-1 & 245 & 103,3 & -0,130\\
-2 & 589 & 127,5 & 0,192\\
-3 & 1.669 & 122,2 & 0,430\\
-4 & 2.701 & 126,9 & 0,566\\
-5 & 2.549 & 125,1 & 0,620\\
+Resenhas & 8.033 & 1.967\\
+Nota média & 3,87 & 4,02\\
+Popularidade mediana (ratings) & 2.938 & 359\\
+Palavras por resenha (mediana) & 60 & 70\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-O score lexical normalizado apresentou correlação de Pearson $r=0{,}182$ e
-Spearman $\rho=0{,}247$ com a nota. Para comparação, o tamanho da review teve
-Pearson $r=0{,}012$ e Spearman $\rho=-0{,}015$. Votos e comentários também
-apresentaram associações pequenas. A diferença entre os coeficientes lexical e
-VADER e a ausência de validação humana impedem tratar esses valores como prova
-de que os métodos identificaram corretamente o sentimento.
+\section{Metodologia}
+
+\subsection{Preparação e gêneros pelo voto dos leitores}
+
+Duplicatas de reviews e livros foram removidas, números e datas foram
+normalizados e o texto original foi preservado. O idioma de cada resenha foi
+detectado; as 851 resenhas fora do inglês foram mantidas na base, mas excluídas
+das etapas de sentimento, cujos métodos são para inglês.
+
+Categorias de editora, como as do Google Books, são definidas para o mercado, e
+não pelo leitor. Os gêneros foram, por isso, atribuídos pelo voto dos leitores:
+para cada livro, recuperou-se do arquivo original quantas pessoas o colocaram
+em cada estante do Goodreads. O voto de um gênero é a maior contagem entre as
+estantes que o indicam (e não a soma, para não contar duas vezes quem usa
+``sci-fi'' e ``science-fiction''); um gênero é aceito com pelo menos três votos
+e 10\% dos votos do gênero mais votado, até três gêneros por livro. A categoria
+ampla \texttt{nonfiction} cede a gêneros específicos que passem no corte, e
+empates são decididos pelo catálogo. Livros sem votos suficientes usam a
+presença de rótulos de estantes e catálogos, e essa origem é registrada. Ao
+todo, 6.416 livros receberam gêneros pelos leitores, 550 pelo critério de
+rótulos e 65 ficaram sem gênero.
+
+\subsection{Representações textuais e métodos de sentimento}
+
+Para a análise exploratória, HTML, URLs e caracteres de controle foram
+tratados, e foram extraídos tokens, quantidade de palavras, frases e razão de
+vocabulário único. O baseline lexical usa um vocabulário pequeno e explícito
+em inglês, com polaridade $+1$, $-1$ ou zero por token e inversão por um
+negador nas três posições anteriores:
+\[
+s_{100} = 100 \frac{N_{+}-N_{-}}{N_{\text{tokens}}}.
+\]
+
+O VADER~\cite{hutto2014}, criado para linguagem informal de redes sociais, foi
+aplicado com os limiares convencionais $-0{,}05$ e $0{,}05$. O terceiro método
+é o transformer \texttt{siebert/sentiment-roberta-large-english}, um RoBERTa
+ajustado em 15 bases de dados em inglês, com acurácia média publicada de
+93,2\% e de 92,5\% em resenhas de livros~\cite{hartmann2023}. O modelo é
+binário (positivo ou negativo). Resenhas longas foram divididas em trechos
+sobrepostos de até 350 palavras, e a probabilidade positiva da resenha é a
+média das probabilidades dos trechos, ponderada pelo tamanho.
+
+\subsection{Predição de nota com rótulo fraco}
+
+Para medir se o texto prevê a nota, a nota foi convertida em rótulo fraco
+(1--2 negativo, 4--5 positivo, nota 3 excluída). Além dos três métodos acima,
+foi treinado um classificador TF-IDF com unigramas e bigramas e regressão
+logística balanceada~\cite{pang2002,sklearn}. Todos foram avaliados nas mesmas
+cinco dobras de validação cruzada estratificada e agrupada: resenhas ligadas
+pelo mesmo usuário ou livro formam um componente conexo que nunca se divide
+entre treino e teste. Métodos com classe neutra são avaliados nas resenhas em
+que decidem a polaridade, com a cobertura reportada.
+
+\subsection{Validação humana}
+
+A concordância com a nota não valida o sentimento, pois a nota não é a
+polaridade do texto. Foi gerada uma amostra estratificada por nota e tamanho de
+601 resenhas em inglês, apresentada sem a nota original. Os anotadores usam uma
+interface em que cada resenha é um cartão (positiva, negativa, neutra, mista ou
+incerta), com tradução automática para o português como apoio, produzida
+localmente pelo OPUS-MT~\cite{opusmt}; o julgamento é feito sobre o texto
+original. Os dois autores anotam as mesmas resenhas de forma independente, e as
+classificações são gravadas numa planilha compartilhada. Estão previstas a
+concordância entre anotadores (Cohen's kappa), as métricas de cada método
+contra os rótulos de consenso e um TF-IDF treinado com esses rótulos em split
+agrupado.
+
+\subsection{Recomendação e visualização}
+
+O site agrega as resenhas por livro. Para cada título, calcula a proporção de
+resenhas positivas e negativas segundo o transformer, apenas em inglês, e as
+palavras mais características das resenhas, ranqueadas por TF-IDF com o livro
+como documento. A recomendação combina gêneros compartilhados (voto dos
+leitores) e proximidade da probabilidade positiva média. Livros com menos de
+três resenhas exibem um aviso. O grafo apresenta o livro no centro, palavras no
+primeiro anel e títulos que compartilham esses termos no anel externo. Essa
+recomendação é uma prova de conceito exploratória, não um sistema validado por
+usuários.
+
+\section{Resultados}
+
+\subsection{Perfil da base e gêneros}
+
+A base final contém 8.033 reviews, 7.031 livros e 7.350 usuários. Entre as
+7.753 reviews com nota válida, a média foi 3,87, com mediana 4. Pelo voto dos
+leitores, os gêneros principais mais frequentes por número de resenhas foram
+fantasy (1.212), young adult (1.045), romance (955), mystery (760) e historical
+fiction (658).
+
+Leitores e catálogo concordam no gênero principal em apenas 49,7\% dos livros
+com as duas fontes. A maior divergência é \texttt{children} $\rightarrow$
+\texttt{young\_adult} (348 livros): a categoria editorial ``Juvenile Fiction''
+agrupa o que os leitores separam em infantil e juvenil. Na comparação com o
+critério anterior, que dava peso dobrado ao catálogo, \texttt{thriller} cai de
+365 para 135 livros como gênero principal e \texttt{historical\_fiction} sobe
+de 326 para 576.
+
+\subsection{Sentimento e nota}
+
+Nas 7.182 resenhas em inglês, o transformer classifica 80,9\% como positivas e
+19,1\% como negativas; o VADER, 80,0\% positivas, 5,0\% neutras e 15,0\%
+negativas. A Fig.~\ref{fig:negativas} mostra a fração de resenhas classificadas
+como negativas em cada nota. O transformer separa as notas com clareza (95,9\%
+de negativas na nota 1 e 2,0\% na nota 5); o VADER classifica apenas 54,4\% das
+resenhas de nota 1 como negativas, e o léxico, 26,3\%.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{processed/09_predicao_nota/negativas_por_nota.png}
+\caption{Resenhas em inglês classificadas como negativas, por nota e método.}
+\label{fig:negativas}
+\end{figure}
+
+A probabilidade positiva do transformer tem correlação de Spearman
+$\rho=0{,}558$ com a nota (Pearson $r=0{,}624$), contra $\rho=0{,}238$ do
+compound do VADER e $\rho=0{,}253$ do score lexical. O tamanho da resenha tem
+associação desprezível com a nota (Spearman $\rho=-0{,}015$). Votos e
+comentários também apresentaram associações pequenas.
+
+\subsection{Predição de nota}
+
+A Tabela~\ref{tab:predicao} resume a validação cruzada agrupada em 5.485
+resenhas em inglês (4.741 positivas e 744 negativas pelo rótulo fraco). O
+transformer, sem treino nos dados, supera o TF-IDF treinado; ambos superam
+amplamente o VADER e o léxico, cuja maior falha está nas resenhas negativas.
+Sem agrupamento, o TF-IDF obtém 0,774 de acurácia balanceada, contra 0,772
+agrupado: o vazamento entre usuários e livros é pequeno nesta amostra, porque
+quase todo usuário aparece uma única vez. Os termos de maior peso do TF-IDF são
+interpretáveis: \textit{not}, \textit{didn't}, \textit{boring} e
+\textit{disappointing} para a classe negativa; \textit{loved}, \textit{great},
+\textit{enjoyed} e \textit{amazing} para a positiva.
+
+\begin{table}[!t]
+\caption{Predição da polaridade da nota (5 dobras agrupadas)}
+\label{tab:predicao}
+\centering
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Método} & \textbf{Cobert.} & \textbf{Acur. bal.} & \textbf{F1 neg.}\\
+\midrule
+Transformer & 100\% & 0,910 & 0,822\\
+TF-IDF + reg. logística & 100\% & 0,772 & 0,612\\
+VADER & 95,7\% & 0,669 & 0,417\\
+Léxico & 74,3\% & 0,633 & 0,383\\
+Classe majoritária & 100\% & 0,500 & 0,000\\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Discussão}
 
-Os resultados são coerentes com a hipótese de que notas mais altas tendem a
-coocorrer com linguagem mais positiva, mas a associação é moderada e não
-elimina casos de crítica pontual, elogio com ressalvas ou ironia. O baixo
-relacionamento entre tamanho e nota sugere que extensão, isoladamente, não é
-um indicador suficiente da avaliação do leitor.
+Os resultados são coerentes com a hipótese de que notas mais altas coocorrem
+com linguagem mais positiva, e a força dessa associação depende do método: com
+o transformer ela é moderada, enquanto com métodos de vocabulário fixo parece
+fraca. A diferença sugere que os métodos lexicais subestimam a associação, em
+especial por não reconhecerem críticas expressas sem palavras negativas
+explícitas. As resenhas de nota 3 se dividem (33,9\% negativas), o que é
+compatível com avaliações mistas. O baixo relacionamento entre tamanho e nota
+indica que a extensão, isoladamente, não descreve a avaliação do leitor.
 
-Há dependência entre observações: um usuário pode escrever várias reviews e um
-livro pode receber vários textos. Além disso, 66 reviews possuem texto
-exatamente duplicado. Uma etapa supervisionada futura deve evitar vazamento
-com divisões agrupadas por usuário ou livro e deve manter um teste final
-intocado. O trabalho também não permite conclusões causais sobre votos,
-comentários, popularidade ou sentimento.
+A diferença entre gêneros de leitores e de catálogo mostra que a escolha da
+fonte não é neutra: categorias de mercado e percepção dos leitores organizam os
+mesmos livros de formas distintas. Há dependência entre observações, e por isso
+a avaliação usa divisões agrupadas por usuário e livro. O trabalho não permite
+conclusões causais sobre votos, comentários, popularidade ou sentimento.
 
 \section{Limitações e próximos passos}
 
-O principal limite atual é a ausência de anotações humanas. O vocabulário
-lexical é pequeno e VADER não foi criado especificamente para resenhas
-literárias. A amostra é pequena diante da população original e os matches
-externos, embora filtrados, dependem de metadados de edição. A recomendação
-também não foi avaliada por métricas de ranking ou estudo com usuários.
+A concordância com a nota é um rótulo fraco: mostra que o transformer acompanha
+a avaliação numérica, e não que acerta a polaridade de cada texto; a anotação
+humana em andamento é o que fecha essa lacuna. O transformer é binário e não
+representa resenhas neutras ou mistas. A amostra é pequena diante da população
+original, os matches externos favorecem livros populares, e 92\% dos livros
+têm uma única resenha, o que limita os perfis por livro. As estantes do
+Goodreads refletem os usuários da plataforma, e não leitores em geral. A
+recomendação não foi avaliada por métricas de ranking ou estudo com usuários.
 
-Como próximos passos, recomenda-se: (i) concluir a anotação independente por
-dois anotadores; (ii) calcular kappa e métricas por classe; (iii) comparar
-VADER, TF-IDF e um transformer com splits por usuário e livro; (iv) avaliar
-calibração e intervalos de confiança; e (v) realizar uma avaliação de
-recomendações com participantes ou histórico de cliques.
+Como próximos passos, recomenda-se: (i) concluir a anotação independente e
+reportar kappa e métricas por classe; (ii) avaliar um modelo com classe neutra;
+(iii) ampliar a amostra com seleção por livro para o site; (iv) estimar
+intervalos de confiança por bootstrap; e (v) avaliar as recomendações com
+participantes.
 
 \section{Conclusão}
 
 O BookPulse entrega um pipeline coeso entre amostragem, enriquecimento,
-validação, análise textual e visualização. A base final permite observar
-associações entre nota e linguagem, além de explorar conexões entre livros por
-palavras compartilhadas. O resultado mais importante é metodológico: o projeto
-mantém a distinção entre nota, sentimento e predição, apresenta o baseline como
-exploratório e explicita a validação humana ainda necessária para conclusões
-de desempenho.
+validação, análise textual e visualização. Os gêneros passam a refletir o voto
+dos leitores, e a comparação com o catálogo é, ela própria, um resultado. A
+comparação de métodos mostra que um transformer com acurácia publicada captura
+a relação entre texto e nota muito melhor que os métodos lexicais. O projeto
+mantém a distinção entre nota, sentimento e predição e explicita a validação
+humana que ainda conclui a avaliação do sentimento.
 
 \begin{thebibliography}{00}
 \bibitem{pang2002} B. Pang, L. Lee e S. Vaithyanathan, ``Thumbs up? Sentiment
-Classification using Machine Learning Techniques,'' \textit{Proc. ACL}, 2002,
+Classification using Machine Learning Techniques,'' \textit{Proc. EMNLP}, 2002,
 doi: 10.3115/1118693.1118704.
 \bibitem{hutto2014} C. J. Hutto e E. Gilbert, ``VADER: A Parsimonious
 Rule-based Model for Sentiment Analysis of Social Media Text,'' \textit{Proc.
 ICWSM}, 2014, doi: 10.1609/icwsm.v8i1.14550.
-\bibitem{socher2013} R. Socher et al., ``Recursive Deep Models for Semantic
-Compositionality Over a Sentiment Treebank,'' \textit{Proc. EMNLP}, 2013.
-\bibitem{devlin2019} J. Devlin et al., ``BERT: Pre-training of Deep
-Bidirectional Transformers for Language Understanding,'' \textit{Proc. NAACL},
-2019, doi: 10.18653/v1/N19-1423.
+\bibitem{hartmann2023} J. Hartmann, M. Heitmann, C. Siebert e C. Schamp,
+``More than a Feeling: Accuracy and Application of Sentiment Analysis,''
+\textit{International Journal of Research in Marketing}, vol. 40, n. 1,
+pp. 75--87, 2023, doi: 10.1016/j.ijresmar.2022.05.005.
+\bibitem{wan2018} M. Wan e J. McAuley, ``Item Recommendation on Monotonic
+Behavior Chains,'' \textit{Proc. ACM RecSys}, 2018,
+doi: 10.1145/3240323.3240369.
+\bibitem{opusmt} J. Tiedemann e S. Thottingal, ``OPUS-MT -- Building open
+translation services for the World,'' \textit{Proc. EAMT}, 2020.
 \bibitem{sklearn} F. Pedregosa et al., ``Scikit-learn: Machine Learning in
 Python,'' \textit{JMLR}, vol. 12, pp. 2825--2830, 2011.
-\bibitem{huggingface} Hugging Face, ``Text classification,'' 2024. [Online].
-Available: \url{https://huggingface.co/docs/transformers/en/tasks/sequence_classification}
 \end{thebibliography}
 
 \end{document}
