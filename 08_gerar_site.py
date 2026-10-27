@@ -89,6 +89,25 @@ def palavras(
     return [{"word": palavra, "count": contador[palavra]} for palavra, _ in pontuadas[:limite]]
 
 
+def resenhas_amostra(grupo: pd.DataFrame, limite: int = 5) -> list[dict[str, object]]:
+    """Publica excertos curtos, priorizando reviews com texto e nota válida."""
+    candidatas = grupo[grupo["review_text"].fillna("").astype(str).str.strip().ne("")].copy()
+    candidatas["_words"] = candidatas["review_text"].fillna("").astype(str).str.split().str.len()
+    candidatas = candidatas.sort_values(
+        ["rating_valido", "_words"], ascending=[False, False], na_position="last"
+    ).head(limite)
+    resultado = []
+    for _, review in candidatas.iterrows():
+        texto_review = texto(review.get("review_text"))
+        resultado.append({
+            "text": texto_review[:360] + ("..." if len(texto_review) > 360 else ""),
+            "rating": float(review["rating_valido"]) if pd.notna(review.get("rating_valido")) else None,
+            "words": int(review["_words"]),
+            "label": texto(review.get("transformer_label")) or None,
+        })
+    return resultado
+
+
 def agregar(df: pd.DataFrame) -> list[dict[str, object]]:
     frequencia, total_livros = frequencia_documental(df)
     livros: list[dict[str, object]] = []
@@ -116,6 +135,12 @@ def agregar(df: pd.DataFrame) -> list[dict[str, object]]:
             "average_rating": round(float(validas["rating_valido"].mean()), 2) if not validas.empty else None,
             "review_count": total,
             "average_words": round(float(grupo["refined_word_count"].mean()), 1),
+            "rating_distribution": {
+                str(int(nota)): int((validas["rating_valido"] == nota).sum())
+                for nota in range(1, 6)
+            },
+            "text_review_count": int(grupo["review_text"].fillna("").astype(str).str.strip().ne("").sum()),
+            "reviews": resenhas_amostra(grupo),
             "sentiment_reviews": len(ingles),
             "sentiment": {
                 "positive": round(float(proporcoes.get("positive", 0)), 3),

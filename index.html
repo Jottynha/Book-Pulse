@@ -13,7 +13,11 @@
   <header class="hero">
     <nav class="nav shell">
       <a class="brand" href="#">Book<span>Pulse</span></a>
-      <span class="nav-note">Goodreads · análise textual · <a href="anotar.html">anotar resenhas</a></span>
+      <div class="nav-actions">
+        <button id="home-button" class="nav-button" type="button" aria-label="Voltar ao início"><span aria-hidden="true">⌂</span> Início</button>
+        <button id="back-button" class="nav-button" type="button" aria-label="Voltar à página anterior" disabled><span aria-hidden="true">←</span> Voltar</button>
+        <a class="nav-note" href="anotar.html">Goodreads · anotar resenhas</a>
+      </div>
     </nav>
     <div class="hero-content shell">
       <p class="eyebrow">Descubra o que os leitores dizem</p>
@@ -29,14 +33,14 @@
   </header>
 
   <main class="shell main">
-    <section id="empty-state" class="empty-state">
+    <section id="empty-state" class="empty-state home-page">
       <div class="empty-mark">✦</div>
       <h2>Comece por um livro</h2>
       <p>As recomendações combinam gêneros definidos pelo voto dos leitores e o perfil de sentimento das resenhas.</p>
       <div id="featured" class="featured-grid"></div>
     </section>
 
-    <section id="book-view" hidden>
+    <section id="book-view" class="book-page" hidden>
       <div class="book-header">
         <div class="cover-frame"><img id="cover" alt="" loading="lazy"></div>
         <div class="book-intro">
@@ -83,6 +87,19 @@
         </section>
       </div>
 
+      <div class="analysis-grid book-data-grid">
+        <section class="panel">
+          <p class="eyebrow">Distribuição das avaliações</p>
+          <h3>Como as notas se espalham</h3>
+          <div id="rating-chart" class="rating-chart"></div>
+        </section>
+        <section class="panel">
+          <p class="eyebrow">Amostra textual</p>
+          <h3>O que caracteriza este livro</h3>
+          <div id="book-data-summary" class="data-summary"></div>
+        </section>
+      </div>
+
       <section class="panel graph-panel">
         <div class="section-heading graph-heading">
           <div><p class="eyebrow">Mapa de linguagem</p><h2>As palavras que aproximam livros</h2></div>
@@ -90,12 +107,18 @@
         </div>
         <div class="graph-key"><span><i class="key-dot book-key"></i>livro selecionado</span><span><i class="key-dot word-key"></i>palavra</span><span><i class="key-dot related-key"></i>título relacionado</span></div>
         <div id="book-graph" class="book-graph" role="img" aria-label="Grafo de palavras e livros relacionados"></div>
+        <div id="graph-tooltip" class="graph-tooltip" role="status" aria-live="polite" hidden></div>
         <p class="method-note">Conexões são exploratórias: palavras genéricas de resenha são rebaixadas pelo TF-IDF, e as conexões não representam semelhança editorial ou causalidade.</p>
       </section>
 
       <section class="recommendations">
         <div class="section-heading"><div><p class="eyebrow">Próxima leitura</p><h2>Livros com um pulso parecido</h2></div><p>Gênero e distribuição de sentimentos semelhantes.</p></div>
         <div id="recommendation-grid" class="book-grid"></div>
+      </section>
+
+      <section class="reviews-section">
+        <div class="section-heading"><div><p class="eyebrow">Vozes dos leitores</p><h2>Resenhas em destaque</h2></div><p>Excertos da amostra usada na análise, preservados para contextualizar os indicadores.</p></div>
+        <div id="reviews-list" class="reviews-list"></div>
       </section>
     </section>
   </main>

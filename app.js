@@ -27,6 +27,26 @@ function words(items, cloud = false) {
   ).join("");
 }
 
+function renderRatingChart(book) {
+  const distribution = book.rating_distribution || {};
+  const max = Math.max(...Object.values(distribution), 1);
+  return [5, 4, 3, 2, 1].map((rating) => {
+    const count = distribution[String(rating)] || 0;
+    return `<div class="rating-row"><b>${rating}★</b><span class="rating-track"><i style="width:${count / max * 100}%"></i></span><small>${count}</small></div>`;
+  }).join("");
+}
+
+function renderReviews(book) {
+  if (!book.reviews?.length) {
+    return `<p class="empty-reviews">Não há texto de resenha disponível para este livro.</p>`;
+  }
+  return book.reviews.map((review) => `<article class="review-card">
+    <div class="review-meta"><span class="review-stars">${review.rating ? `${"★".repeat(Math.round(review.rating))}${"☆".repeat(5 - Math.round(review.rating))}` : "Sem nota"}</span><span>${review.words.toLocaleString("pt-BR")} palavras</span></div>
+    <p>“${escapeHtml(review.text)}”</p>
+    ${review.label ? `<small class="review-label ${escapeHtml(review.label)}">${review.label === "positive" ? "classificada como positiva" : "classificada como negativa"}</small>` : ""}
+  </article>`).join("");
+}
+
 function recommendations(book) {
   const genreSet = new Set(book.genres);
   return state.books.filter((candidate) => candidate.id !== book.id).map((candidate) => {
@@ -49,12 +69,35 @@ function notice(book) {
   return "";
 }
 
-function showBook(book) {
+function updateHistory(book, replace = false) {
+  const url = `?livro=${encodeURIComponent(book.id)}`;
+  if (replace) history.replaceState({ bookId: book.id }, "", url);
+  else history.pushState({ bookId: book.id }, "", url);
+}
+
+function showHome(replace = false) {
+  state.selected = null;
+  document.body.classList.add("home-mode");
+  document.body.classList.remove("detail-mode");
+  if (replace) history.replaceState({}, "", location.pathname);
+  else history.pushState({}, "", location.pathname);
+  $("#empty-state").hidden = false;
+  $("#book-view").hidden = true;
+  $("#search").value = "";
+  $("#suggestions").hidden = true;
+  $("#back-button").disabled = true;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function showBook(book, { replace = false, scroll = true } = {}) {
   if (!book) return;
   state.selected = book;
-  history.replaceState(null, "", `?livro=${encodeURIComponent(book.id)}`);
+  document.body.classList.add("detail-mode");
+  document.body.classList.remove("home-mode");
+  updateHistory(book, replace);
   $("#empty-state").hidden = true;
   $("#book-view").hidden = false;
+  $("#back-button").disabled = history.length <= 1;
   $("#search").value = book.title;
   $("#suggestions").hidden = true;
   $("#cover").src = cover(book.cover_url, book.title);
@@ -80,10 +123,13 @@ function showBook(book) {
   $("#common-words").innerHTML = words(book.common_words, true);
   $("#positive-words").innerHTML = words(book.positive_words);
   $("#negative-words").innerHTML = words(book.negative_words);
+  $("#rating-chart").innerHTML = renderRatingChart(book);
+  $("#book-data-summary").innerHTML = `<div class="summary-number">${book.text_review_count.toLocaleString("pt-BR")} <small>com texto</small></div><p>${book.sentiment_reviews ? `${book.sentiment_reviews.toLocaleString("pt-BR")} resenhas em inglês alimentaram o perfil de sentimento.` : "Não houve resenhas em inglês suficientes para o perfil de sentimento."}</p><p>Média de ${Math.round(book.average_words).toLocaleString("pt-BR")} palavras por resenha.</p>`;
+  $("#reviews-list").innerHTML = renderReviews(book);
   renderGraph(book);
   $("#recommendation-grid").innerHTML = recommendations(book).map((item) => renderCard(item)).join("");
   document.querySelectorAll("[data-id]").forEach((card) => card.addEventListener("click", () => showBook(state.books.find((item) => item.id === card.dataset.id))));
-  window.scrollTo({ top: document.querySelector(".main").offsetTop - 20, behavior: "smooth" });
+  if (scroll) window.scrollTo({ top: document.querySelector(".main").offsetTop - 20, behavior: "smooth" });
 }
 
 function relatedBooks(book, word) {
@@ -138,7 +184,7 @@ function renderGraph(book) {
       const clip = node.type !== "word"
         ? `<clipPath id="clip-${node.type}-${node.id}"><circle r="${radius - 1}"></circle></clipPath>`
         : "";
-      return `<g class="graph-node ${node.type}" transform="translate(${node.x} ${node.y})" data-node-id="${escapeHtml(node.id)}" tabindex="0">
+      return `<g class="graph-node ${node.type}" transform="translate(${node.x} ${node.y})" data-node-id="${escapeHtml(node.id)}" data-label="${escapeHtml(node.label)}" data-count="${node.count || ""}" data-related="${node.type === "related" ? "true" : "false"}" tabindex="0">
         ${clip}<circle class="node-background" r="${radius}" filter="url(#graph-shadow)"></circle>${image}
         <circle class="node-outline" r="${radius}"></circle>
         ${label ? `<text class="node-label">${escapeHtml(label)}</text>` : ""}
@@ -148,11 +194,51 @@ function renderGraph(book) {
     }).join("")}</g>
   </svg>`;
   $("#book-graph").innerHTML = svg;
+  const graphNodes = $("#book-graph").querySelectorAll(".graph-node");
+  graphNodes.forEach((node) => {
+    node.addEventListener("mouseenter", (event) => showGraphTooltip(event, node, book));
+    node.addEventListener("mousemove", (event) => moveGraphTooltip(event));
+    node.addEventListener("mouseleave", hideGraphTooltip);
+    node.addEventListener("focus", (event) => showGraphTooltip(event, node, book));
+    node.addEventListener("blur", hideGraphTooltip);
+  });
   $("#book-graph").querySelectorAll(".graph-node.related").forEach((node) => {
     const related = state.books.find((item) => item.id === node.dataset.nodeId);
-    node.addEventListener("click", () => showBook(related));
-    node.addEventListener("keydown", (event) => { if (event.key === "Enter") showBook(related); });
+    const open = () => showBook(related);
+    node.addEventListener("click", open);
+    node.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); } });
   });
+}
+
+function graphTooltipContent(node, selected) {
+  if (node.classList.contains("word")) {
+    return `<strong>${escapeHtml(node.dataset.label)}</strong><span>${node.dataset.count} ocorrências nas resenhas de ${escapeHtml(selected.title)}</span>`;
+  }
+  const book = node.classList.contains("book")
+    ? selected
+    : state.books.find((item) => item.id === node.dataset.nodeId);
+  if (!book) return "";
+  const genres = book.genres.slice(0, 2).map((genre) => genre.replaceAll("_", " ")).join(" · ");
+  return `<img src="${escapeHtml(cover(book.cover_url, book.title))}" alt=""><div><strong>${escapeHtml(book.title)}</strong><span>${escapeHtml(book.author)}</span><small>${book.review_count} resenhas${genres ? ` · ${escapeHtml(genres)}` : ""}</small></div>`;
+}
+
+function showGraphTooltip(event, node, selected) {
+  const tooltip = $("#graph-tooltip");
+  tooltip.innerHTML = graphTooltipContent(node, selected);
+  tooltip.hidden = false;
+  moveGraphTooltip(event);
+}
+
+function moveGraphTooltip(event) {
+  const tooltip = $("#graph-tooltip");
+  if (tooltip.hidden) return;
+  const bounds = $("#book-graph").getBoundingClientRect();
+  tooltip.style.left = `${event.clientX - bounds.left + 16}px`;
+  tooltip.style.top = `${event.clientY - bounds.top + 16}px`;
+}
+
+function hideGraphTooltip() {
+  $("#graph-tooltip").hidden = true;
 }
 
 function searchBooks(query) {
@@ -186,13 +272,22 @@ function navigateSuggestions(event) {
 async function init() {
   const response = await fetch("data/books.json");
   const payload = await response.json();
+  document.body.classList.add("home-mode");
   state.books = payload.books;
   $("#footer-count").textContent = `Dados agregados de ${payload.review_count.toLocaleString("pt-BR")} resenhas confiáveis · ${payload.book_count.toLocaleString("pt-BR")} livros`;
   $("#featured").innerHTML = state.books.slice(0, 4).map((book) => renderCard(book, "mini-card")).join("");
   document.querySelectorAll("[data-id]").forEach((card) => card.addEventListener("click", () => showBook(state.books.find((item) => item.id === card.dataset.id))));
   $("#search").addEventListener("input", (event) => searchBooks(event.target.value));
   $("#search").addEventListener("keydown", navigateSuggestions);
+  $("#home-button").addEventListener("click", () => showHome());
+  $("#back-button").addEventListener("click", () => history.back());
+  window.addEventListener("popstate", () => {
+    const linked = new URLSearchParams(location.search).get("livro");
+    const book = linked ? state.books.find((item) => item.id === linked) : null;
+    if (book) showBook(book, { replace: true, scroll: false });
+    else showHome(true);
+  });
   const linked = new URLSearchParams(location.search).get("livro");
-  if (linked) showBook(state.books.find((book) => book.id === linked));
+  if (linked) showBook(state.books.find((book) => book.id === linked), { replace: true });
 }
 init().catch(() => { $("#empty-state h2").textContent = "Não foi possível carregar os dados"; });

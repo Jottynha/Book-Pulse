@@ -222,15 +222,20 @@ transforma os resultados agregados em uma interface de exploração. Ele permite
 
 - buscar livros pelo título ou autor (com navegação por teclado) e abrir um
   livro por link direto (`?livro=<book_id>`);
+- navegar entre a página inicial e os livros selecionados com os controles
+  `Início` e `Voltar`, além do histórico do navegador;
 - carregar a capa por URL da Open Library, usando ISBN-13 ou ISBN-10;
 - visualizar nota média, quantidade de reviews e extensão média;
+- comparar a distribuição das notas, a quantidade de textos disponíveis e
+  excertos de resenhas da amostra;
 - comparar proporções de resenhas positivas e negativas segundo o transformer,
   apenas nas resenhas em inglês;
 - consultar as palavras mais características das resenhas de cada livro,
   ranqueadas por TF-IDF (o livro é o documento), e os termos de resenhas
   positivas e negativas;
 - explorar um grafo que liga o livro a essas palavras e a outros títulos que as
-  compartilham;
+  compartilham; ao passar o mouse sobre uma capa, o site mostra título, autor,
+  quantidade de resenhas e gêneros;
 - recomendar livros com gêneros compartilhados (voto dos leitores) e
   probabilidade positiva média próxima.
 
@@ -251,6 +256,12 @@ bloqueia `fetch` de arquivos JSON quando a página é aberta por `file://`. Essa
 mesma estrutura é compatível com o GitHub Pages. Para traduzir sem baixar o
 modelo (~520 MB) do Hugging Face, coloque uma cópia em
 `models/Douglasrambo/opus-mt-tc-big-en-pt-onnx/` (pasta ignorada pelo Git).
+
+Arquivos temporários Python (`__pycache__`) e gráficos HTML antigos gerados
+durante protótipos não fazem parte do produto final. O GitHub Pages depende
+somente dos arquivos de site na raiz e de `data/books.json`; as ferramentas de
+anotação e os scripts analíticos permanecem no repositório por serem partes
+reprodutíveis do método.
 
 ## 10. Execução completa
 
