@@ -18,3 +18,12 @@ Thumbs.db
 .vscode/
 .idea/
 *.log
+
+# Modelos de tradução locais (baixados do Hugging Face; grandes demais para o Git)
+models/
+
+# Relatórios Markdown gerados pelos scripts (a documentação fica no README)
+processed/**/*.md
+
+# Cache do pytest
+.pytest_cache/
