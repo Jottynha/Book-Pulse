@@ -9,6 +9,21 @@
 \usepackage{amsmath}
 \usepackage{url}
 
+\newcommand{\sitescreenshot}[3]{%
+\begin{figure}[!t]
+\centering
+\IfFileExists{#1}{%
+  \includegraphics[width=\columnwidth]{#1}%
+}{%
+  \fbox{\parbox[c][4.0cm][c]{0.92\columnwidth}{\centering
+  \textbf{Inserir captura de tela}\\[4pt]
+  Arquivo esperado: \texttt{\detokenize{#1}}}}%
+}
+\caption{#2}
+\label{#3}
+\end{figure}
+}
+
 \title{BookPulse: Análise Comportamental e Exploração de Sentimento em Resenhas de Livros}
 
 \author{
@@ -74,6 +89,26 @@ gêneros definidos pelo voto dos leitores, comparados à classificação de
 catálogo; a comparação de três métodos de sentimento com validação cruzada
 agrupada; um protocolo e uma ferramenta de anotação humana; e o BookPulse, uma
 interface que visualiza palavras compartilhadas entre livros.
+
+As hipóteses operacionais são resumidas na Tabela~\ref{tab:hipoteses}. Elas
+delimitam o que pode ser testado com os dados e evitam interpretar a interface
+como evidência adicional independente.
+
+\begin{table}[!t]
+\caption{Hipóteses e operacionalização}
+\label{tab:hipoteses}
+\centering
+\begin{tabular}{p{0.20\columnwidth}p{0.32\columnwidth}p{0.32\columnwidth}}
+\toprule
+\textbf{Hip.} & \textbf{Operacionalização} & \textbf{Evidência}\\
+\midrule
+H1 & Maior nota associa-se a linguagem mais positiva. & Spearman entre nota e escore\\
+H2 & O transformer acompanha melhor a nota que os baselines. & Correlação e CV agrupada\\
+H3 & Gêneros apresentam perfis descritivos distintos. & Médias e tamanhos por gênero\\
+H4 & Termos compartilhados permitem explorar obras relacionadas. & Grafo TF-IDF, sem validação causal\\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Dados e escopo}
 
@@ -218,7 +253,7 @@ tratadas como independentes.
 
 A concordância com a nota não valida o sentimento, pois a nota não é a
 polaridade do texto. Foi gerada uma amostra estratificada por nota e tamanho de
-601 resenhas em inglês, apresentada sem a nota original. Os anotadores usam uma
+600 resenhas em inglês, apresentada sem a nota original. Os anotadores usam uma
 interface em que cada resenha é um cartão (positiva, negativa, neutra, mista ou
 incerta), com tradução automática para o português como apoio, produzida
 localmente pelo OPUS-MT~\cite{opusmt}; o julgamento é feito sobre o texto
@@ -227,6 +262,46 @@ classificações são gravadas numa planilha compartilhada. Estão previstas a
 concordância entre anotadores (Cohen's kappa), as métricas de cada método
 contra os rótulos de consenso e um TF-IDF treinado com esses rótulos em split
 agrupado.
+
+\subsection{Critério de interpretação e validade}
+
+O desenho analítico é observacional e exploratório. A unidade primária é a
+resenha, mas várias medidas são agregadas por livro, usuário ou gênero; por
+isso, uma correlação simples não deve ser interpretada como efeito individual.
+Para reduzir interpretações excessivas, cada resultado é acompanhado de seu
+universo de cálculo: reviews confiáveis para cobertura, reviews em inglês para
+sentimento, e reviews com nota 1--2 ou 4--5 para a tarefa de predição. Reviews
+com nota 3 não são forçadas a uma polaridade binária.
+
+As variáveis textuais também possuem papéis distintos. Contagem de palavras e
+frases descrevem extensão; diversidade lexical descreve variedade; o score
+lexical fornece um baseline transparente; a probabilidade do transformer
+representa uma escala contínua de polaridade; e o rótulo de sentimento é uma
+decisão binária dependente do método. Essa separação evita apresentar uma
+medida operacional como se fosse uma propriedade observável perfeita do
+leitor.
+
+A validade externa é limitada pela amostragem por resenha e pelo filtro de
+correspondência bibliográfica. A validade de construto do sentimento ainda
+depende da anotação humana, pois a nota Goodreads é um indicador relacionado,
+mas não um padrão-ouro textual. Assim, os resultados são utilizados para
+descrever padrões e orientar exploração, não para diagnosticar indivíduos,
+livros ou comunidades de leitores.
+
+\subsection{Ética, privacidade e uso responsável}
+
+O site não publica \texttt{user\_id}, nomes de usuários, textos completos do
+corpus ou informações pessoais dos anotadores. A interface pública utiliza
+agregações por livro e excertos limitados para contextualização. A ferramenta
+de anotação identifica o colaborador apenas no arquivo de trabalho e deve ser
+usada para fins acadêmicos, sem inferir personalidade, saúde mental ou outras
+características individuais a partir de uma resenha.
+
+As capas e os metadados exibidos dependem de serviços externos, enquanto os
+resultados analíticos são derivados da amostra processada localmente. O
+BookPulse não deve ser usado para avaliar leitores, moderar pessoas ou tomar
+decisões automatizadas sobre acesso a livros. Essa delimitação é parte da
+validade do produto, não apenas uma observação de implementação.
 
 \subsection{Recomendação e visualização}
 
@@ -239,6 +314,74 @@ três resenhas exibem um aviso. O grafo apresenta o livro no centro, palavras no
 primeiro anel e títulos que compartilham esses termos no anel externo. Essa
 recomendação é uma prova de conceito exploratória, não um sistema validado por
 usuários.
+
+\subsection{Produto visual e condensação interativa}
+
+O BookPulse funciona como a camada de comunicação do pipeline. Em vez de
+apresentar diretamente tabelas ou arquivos Parquet, o site transforma cada
+livro em uma unidade de exploração que combina metadados, indicadores
+estatísticos, linguagem e recomendações. Essa decisão preserva a separação
+entre processamento e apresentação: o navegador recebe o arquivo agregado
+\texttt{data/books.json}, enquanto a limpeza, o enriquecimento, a inferência e
+a validação permanecem reproduzíveis nos scripts Python.
+
+A página inicial é o ponto de entrada para a descoberta. A busca por título ou
+autor oferece sugestões com navegação por teclado, e os cards de destaque
+encaminham para uma página de livro. A URL mantém o identificador do título
+selecionado, permitindo compartilhar uma análise específica e recuperar o
+estado pelo histórico do navegador. Os controles ``Início'' e ``Voltar''
+separam a exploração global da análise de uma obra.
+
+\sitescreenshot{figures/site_home.png}
+{Página inicial do BookPulse. A tela apresenta a busca, livros em destaque e o
+acesso à anotação humana; ela resume a entrada do usuário no projeto.}
+{fig:site-home}
+
+Na página de um livro, os dados são organizados em camadas de leitura. O
+cabeçalho apresenta a capa, autor, gêneros, quantidade de resenhas, nota média
+e extensão textual. Em seguida, a proporção de sentimento, o vocabulário
+característico, a distribuição de notas e os excertos de resenhas permitem
+comparar a medida numérica com evidências textuais. O aviso para livros com
+poucas resenhas torna explícita a incerteza de perfis individuais.
+
+\sitescreenshot{figures/site_livro.png}
+{Página de livro com capa, indicadores agregados, distribuição de avaliações e
+resenhas em destaque. A captura deve mostrar como as medidas do pipeline são
+apresentadas em conjunto.}
+{fig:site-livro}
+
+O grafo é a síntese visual da representação TF-IDF. O livro selecionado ocupa
+o centro; as palavras mais características formam o primeiro anel; e títulos
+que compartilham esses termos aparecem no anel externo com suas capas. A
+espessura das conexões representa a frequência da palavra na agregação. O
+tooltip acrescenta título, autor, gêneros e quantidade de resenhas sem
+poluir o espaço principal. Essa visualização deve ser interpretada como
+similaridade lexical exploratória, não como distância semântica validada nem
+como recomendação causal.
+
+\sitescreenshot{figures/site_grafo.png}
+{Grafo interativo de um livro. A captura deve registrar o livro central, os
+termos compartilhados, as capas relacionadas e um tooltip aberto sobre um nó.}
+{fig:site-grafo}
+
+Por fim, a ferramenta \texttt{anotar.html} fecha o ciclo metodológico. Ela
+oculta a nota original, apresenta o texto da resenha e permite marcar
+polaridade positiva, negativa, neutra, mista ou incerta. A tradução automática
+é apenas apoio; a decisão deve considerar o original. As respostas podem ser
+exportadas e comparadas com o transformer, o VADER e o léxico por meio de
+concordância entre anotadores e métricas por classe.
+
+\sitescreenshot{figures/site_anotacao.png}
+{Ferramenta de anotação humana. A captura deve mostrar o cartão de resenha, as
+opções de julgamento e o indicador de progresso, sem expor a nota Goodreads.}
+{fig:site-anotacao}
+
+Essas telas não são um produto separado da análise: constituem uma projeção
+interativa das mesmas decisões metodológicas. A home comunica o escopo, a
+página de livro comunica as estatísticas agregadas, o grafo comunica a
+representação lexical e a anotação humana comunica a etapa de validação. Em
+conjunto, o site permite acompanhar o caminho entre dado bruto, evidência
+quantitativa, interpretação textual e limitação experimental.
 
 \section{Resultados}
 
@@ -362,8 +505,10 @@ recomendação não foi avaliada por métricas de ranking ou estudo com usuário
 Como próximos passos, recomenda-se: (i) concluir a anotação independente e
 reportar kappa e métricas por classe; (ii) avaliar um modelo com classe neutra;
 (iii) ampliar a amostra com seleção por livro para o site; (iv) estimar
-intervalos de confiança por bootstrap; e (v) avaliar as recomendações com
-participantes.
+intervalos de confiança por bootstrap; (v) avaliar as recomendações com
+participantes; e (vi) modularizar o LaTeX em arquivos por seção. A última
+atividade é uma melhoria de manutenção, não altera os resultados desta
+versão, que permanece compilável como um único arquivo.
 
 \section{Conclusão}
 
