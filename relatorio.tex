@@ -90,7 +90,17 @@ foi usado como fonte independente de metadados. O validador combinou
 concordância de ISBN, similaridade de título, autores, ano de publicação e
 concordância entre fontes. Apenas os estados \texttt{MUITO\_ALTO},
 \texttt{ALTO} e \texttt{MEDIO} foram utilizados na análise principal
-(Tabela~\ref{tab:cobertura}).
+(Tabela~\ref{tab:cobertura}). A Fig.~\ref{fig:cobertura} explicita a redução
+de escopo, distinguindo a amostra inicial da base efetivamente analisada.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/cobertura_pipeline.pdf}
+\caption{Redução da amostra nas etapas de validação e definição do escopo
+analítico. Reviews e livros permanecem ligados por identificadores ao longo do
+pipeline.}
+\label{fig:cobertura}
+\end{figure}
 
 \begin{table}[!t]
 \caption{Cobertura observada após a validação}
@@ -175,6 +185,16 @@ binário (positivo ou negativo). Resenhas longas foram divididas em trechos
 sobrepostos de até 350 palavras, e a probabilidade positiva da resenha é a
 média das probabilidades dos trechos, ponderada pelo tamanho.
 
+Os três métodos têm papéis deliberadamente diferentes. O léxico funciona como
+controle interpretável e barato; o VADER acrescenta regras para intensidade,
+pontuação e negação; e o transformer fornece uma representação contextual
+pré-treinada. Assim, a comparação avalia o compromisso entre
+interpretabilidade, cobertura e capacidade de capturar contexto. As
+probabilidades do transformer são usadas como escore contínuo para associação
+com a nota, enquanto o rótulo binário é usado somente nas métricas de
+classificação. Reviews fora do inglês não são traduzidas antes da classificação,
+evitando confundir o desempenho do tradutor com o do classificador.
+
 \subsection{Predição de nota com rótulo fraco}
 
 Para medir se o texto prevê a nota, a nota foi convertida em rótulo fraco
@@ -185,6 +205,14 @@ cinco dobras de validação cruzada estratificada e agrupada: resenhas ligadas
 pelo mesmo usuário ou livro formam um componente conexo que nunca se divide
 entre treino e teste. Métodos com classe neutra são avaliados nas resenhas em
 que decidem a polaridade, com a cobertura reportada.
+
+O agrupamento é uma medida contra vazamento de informação: um mesmo usuário ou
+livro pode compartilhar vocabulário e padrões de escrita entre resenhas. A
+acurácia balanceada é priorizada porque o rótulo fraco é desbalanceado
+(4.741 positivos e 744 negativos); o F1 negativo complementa a análise ao
+medir especificamente a classe minoritária. As médias e desvios-padrão
+reportados são calculados entre as cinco dobras, e não entre observações
+tratadas como independentes.
 
 \subsection{Validação humana}
 
@@ -230,6 +258,14 @@ critério anterior, que dava peso dobrado ao catálogo, \texttt{thriller} cai de
 365 para 135 livros como gênero principal e \texttt{historical\_fiction} sobe
 de 326 para 576.
 
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/generos_nota.pdf}
+\caption{Nota média dos dez gêneros com maior presença na amostra. A ordem é
+apenas descritiva e não implica efeito causal do gênero sobre a nota.}
+\label{fig:generos}
+\end{figure}
+
 \subsection{Sentimento e nota}
 
 Nas 7.182 resenhas em inglês, o transformer classifica 80,9\% como positivas e
@@ -241,7 +277,7 @@ resenhas de nota 1 como negativas, e o léxico, 26,3\%.
 
 \begin{figure}[!t]
 \centering
-\includegraphics[width=\columnwidth]{processed/09_predicao_nota/negativas_por_nota.png}
+\includegraphics[width=\columnwidth]{figures/negativas_por_nota.pdf}
 \caption{Resenhas em inglês classificadas como negativas, por nota e método.}
 \label{fig:negativas}
 \end{figure}
@@ -250,7 +286,9 @@ A probabilidade positiva do transformer tem correlação de Spearman
 $\rho=0{,}558$ com a nota (Pearson $r=0{,}624$), contra $\rho=0{,}238$ do
 compound do VADER e $\rho=0{,}253$ do score lexical. O tamanho da resenha tem
 associação desprezível com a nota (Spearman $\rho=-0{,}015$). Votos e
-comentários também apresentaram associações pequenas.
+comentários também apresentaram associações pequenas. A diferença entre as
+curvas da Fig.~\ref{fig:negativas} mostra por que um único limiar lexical não
+é suficiente para interpretar crítica, ironia ou contexto.
 
 \subsection{Predição de nota}
 
@@ -264,6 +302,17 @@ quase todo usuário aparece uma única vez. Os termos de maior peso do TF-IDF s�
 interpretáveis: \textit{not}, \textit{didn't}, \textit{boring} e
 \textit{disappointing} para a classe negativa; \textit{loved}, \textit{great},
 \textit{enjoyed} e \textit{amazing} para a positiva.
+Esse contraste é visualizado na Fig.~\ref{fig:metodos}: além da acurácia
+balanceada, o F1 negativo evidencia a maior dificuldade dos métodos simples
+com a classe minoritária.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/comparacao_metodos.pdf}
+\caption{Desempenho médio dos métodos nas cinco dobras agrupadas; as barras de
+erro representam o desvio-padrão entre dobras.}
+\label{fig:metodos}
+\end{figure}
 
 \begin{table}[!t]
 \caption{Predição da polaridade da nota (5 dobras agrupadas)}

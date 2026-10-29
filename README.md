@@ -87,6 +87,15 @@ com tendência a títulos mais populares.
   -> processed/09_predicao_nota/
 ```
 
+As figuras vetoriais do artigo são geradas por `gerar_figuras_relatorio.py`
+com Plotly, sem usar Matplotlib ou Seaborn nessa etapa. O script lê apenas os
+CSV/JSON já produzidos pelo pipeline e grava PDFs (para o LaTeX) e SVGs (para
+edição e inspeção) em `figures/`:
+
+```bash
+py -3 gerar_figuras_relatorio.py
+```
+
 O sufixo `100k` dos arquivos é histórico; a execução documentada contém 10.000
 reviews na amostra inicial. Os relatórios Markdown gerados pelos scripts em
 `processed/` não são versionados; a documentação fica neste README.
