@@ -57,9 +57,11 @@ moderada com a nota (Spearman $\rho=0{,}558$), muito acima do VADER
 ($\rho=0{,}238$) e do léxico ($\rho=0{,}253$). Usando a nota como rótulo fraco,
 o transformer atinge acurácia balanceada de 0,910 em validação cruzada agrupada
 por usuário e livro, contra 0,772 de um TF-IDF treinado nos próprios dados. Uma
-validação com anotação humana independente está em andamento. O projeto inclui
-uma interface que liga livros, palavras características e títulos com perfis
-semelhantes.
+validação humana preliminar, com 247 rótulos válidos de um anotador, obteve
+acurácia balanceada de 0,508 para VADER, 0,509 para o léxico e 0,318 para
+TF-IDF + regressão logística. Ainda não há segundo anotador ou consenso, logo
+não é possível reportar Cohen's kappa. O projeto inclui uma interface que liga
+livros, palavras características e títulos com perfis semelhantes.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -253,15 +255,17 @@ tratadas como independentes.
 
 A concordância com a nota não valida o sentimento, pois a nota não é a
 polaridade do texto. Foi gerada uma amostra estratificada por nota e tamanho de
-600 resenhas em inglês, apresentada sem a nota original. Os anotadores usam uma
-interface em que cada resenha é um cartão (positiva, negativa, neutra, mista ou
-incerta), com tradução automática para o português como apoio, produzida
-localmente pelo OPUS-MT~\cite{opusmt}; o julgamento é feito sobre o texto
-original. Os dois autores anotam as mesmas resenhas de forma independente, e as
-classificações são gravadas numa planilha compartilhada. Estão previstas a
-concordância entre anotadores (Cohen's kappa), as métricas de cada método
-contra os rótulos de consenso e um TF-IDF treinado com esses rótulos em split
-agrupado.
+600 resenhas em inglês, apresentada sem a nota original. A ferramenta permite
+classificar cada resenha como positiva, negativa, neutra, mista ou incerta,
+com tradução automática para o português como apoio, produzida localmente pelo
+OPUS-MT~\cite{opusmt}; o julgamento é feito sobre o texto original. Até o
+momento, um anotador exportou 262 registros, dos quais 247 têm rótulo válido:
+172 positivos, 53 neutros e 22 negativos. Nessa amostra, VADER obteve
+acurácia balanceada de 0,508, o léxico 0,509 e TF-IDF + regressão logística
+0,318. Esses números são uma avaliação preliminar contra um único anotador,
+não um consenso. A segunda anotação independente ainda é necessária para
+calcular concordância e Cohen's kappa, além de treinar o modelo final contra
+rótulos reconciliados.
 
 \subsection{Critério de interpretação e validade}
 
@@ -495,7 +499,9 @@ conclusões causais sobre votos, comentários, popularidade ou sentimento.
 
 A concordância com a nota é um rótulo fraco: mostra que o transformer acompanha
 a avaliação numérica, e não que acerta a polaridade de cada texto; a anotação
-humana em andamento é o que fecha essa lacuna. O transformer é binário e não
+humana preliminar já oferece uma primeira verificação, mas a ausência de um
+segundo anotador ainda impede medir concordância e consenso. O transformer é
+binário e não
 representa resenhas neutras ou mistas. A amostra é pequena diante da população
 original, os matches externos favorecem livros populares, e 92\% dos livros
 têm uma única resenha, o que limita os perfis por livro. As estantes do

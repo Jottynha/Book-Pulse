@@ -112,6 +112,24 @@ por reservoir sampling com `seed=42`.
 > chamadas de negativas, notas 4–5 de positivas e nota 3 é excluída. Isso
 > mede se o texto acompanha a nota; não valida sozinho o sentimento textual.
 
+### Primeira validação humana
+
+O arquivo [`metricas_anotadas.json`](./processed/07_sentimento/metricas_anotadas.json)
+foi gerado a partir de 262 resenhas exportadas por Henrique, das quais 247
+possuem rótulo válido: 172 positivas, 53 neutras e 22 negativas. Nessa amostra,
+os resultados foram:
+
+| Método | Acurácia | Acurácia balanceada | Macro-F1 |
+| --- | ---: | ---: | ---: |
+| VADER | 0,684 | 0,508 | 0,438 |
+| Léxico | 0,652 | 0,509 | 0,528 |
+| TF-IDF + regressão logística | 0,661 | 0,318 | 0,268 |
+
+Esta é uma avaliação preliminar contra um único anotador. Ainda é necessário
+um segundo conjunto independente (ou uma coluna `annotator` com dois
+anotadores) para calcular concordância e Cohen's kappa; por isso, os números
+não devem ser apresentados como consenso humano.
+
 ## 🌐 O site como produto
 
 O site é a condensação interativa do pipeline. A pessoa pode começar pela
@@ -307,7 +325,8 @@ Book-Pulse/
 - O grafo mede compartilhamento de palavras, não semelhança semântica.
 - A recomendação ainda não foi avaliada por ranking ou estudo com usuários.
 - Ainda não foram calculados intervalos de confiança por bootstrap.
-- A validação humana independente ainda precisa ser concluída.
+- A validação humana preliminar contém 247 rótulos válidos de um anotador;
+  falta um segundo anotador ou uma etapa de consenso para medir concordância.
 - O relatório LaTeX ainda está em um arquivo único; sua modularização está
   planejada, mas não foi feita para preservar uma compilação simples.
 
