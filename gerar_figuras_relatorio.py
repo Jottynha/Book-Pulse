@@ -51,6 +51,50 @@ def export(fig: go.Figure, name: str) -> None:
     fig.write_image(SAIDA / f"{name}.svg", width=920, height=520, scale=1)
 
 
+def carregar_sentimento() -> pd.DataFrame:
+    dados = pd.read_parquet(RESULTADOS / "07_sentimento" / "reviews_sentimento.parquet")
+    cache = RESULTADOS / "07_sentimento" / "transformer_cache.parquet"
+    if "transformer_label" not in dados and cache.exists():
+        transformer = pd.read_parquet(cache)[
+            ["review_id", "transformer_label", "transformer_positive_prob"]
+        ]
+        dados = dados.merge(transformer, on="review_id", how="left", validate="one_to_one")
+    return dados[dados["text_is_english"]].copy()
+
+
+def sentimento_metodos() -> None:
+    dados = carregar_sentimento()
+    metodos = {
+        "Transformer": "transformer_label",
+        "VADER": "vader_label",
+        "Léxico": "lexical_label",
+    }
+    classes = ["negative", "neutral", "positive"]
+    fig = go.Figure()
+    for classe in classes:
+        valores = []
+        for coluna in metodos.values():
+            serie = dados[coluna].dropna()
+            valores.append((serie == classe).mean() * 100)
+        fig.add_trace(go.Bar(
+            x=list(metodos),
+            y=valores,
+            name={"negative": "Negativa", "neutral": "Neutra", "positive": "Positiva"}[classe],
+            marker_color={
+                "negative": PALETA["coral"],
+                "neutral": PALETA["gold"],
+                "positive": PALETA["teal"],
+            }[classe],
+        ))
+    fig.update_layout(
+        barmode="stack",
+        xaxis_title="Método",
+        yaxis_title="Reviews (%)",
+    )
+    fig.update_yaxes(range=[0, 100], ticksuffix="%")
+    export(layout(fig, "Distribuição global das classes de sentimento"), "sentimento_metodos")
+
+
 def cobertura() -> None:
     valores = [10000, 8033, 7182, 7031]
     rotulos = ["Amostra inicial", "Reviews confiáveis", "Reviews em inglês", "Livros confiáveis"]
@@ -114,22 +158,22 @@ def metodos() -> None:
 
 
 def generos() -> None:
-    dados = pd.read_csv(RESULTADOS / "06_analise" / "resumo_por_genero.csv").head(10)
-    dados = dados.sort_values("average_rating")
+    dados = pd.read_csv(RESULTADOS / "06_analise" / "resumo_por_genero.csv")
+    dados = dados.nlargest(5, "reviews").sort_values("reviews")
     fig = go.Figure(go.Bar(
-        x=dados["average_rating"], y=dados["genre_1"].str.replace("_", " ", regex=False),
-        orientation="h", text=dados["average_rating"].round(2), textposition="outside",
+        x=dados["reviews"], y=dados["genre_1"].str.replace("_", " ", regex=False),
+        orientation="h", text=dados["reviews"], textposition="outside",
         marker_color=PALETA["blue"],
-        customdata=dados[["reviews", "average_words"]],
-        hovertemplate="%{y}<br>nota: %{x:.2f}<br>reviews: %{customdata[0]}<br>palavras: %{customdata[1]:.1f}<extra></extra>",
+        customdata=dados[["average_rating", "average_words"]],
+        hovertemplate="%{y}<br>reviews: %{x}<br>nota média: %{customdata[0]:.2f}<br>palavras: %{customdata[1]:.1f}<extra></extra>",
     ))
-    fig.update_layout(xaxis_title="Nota média", yaxis_title="")
-    fig.update_xaxes(range=[3.5, 4.2], dtick=.1)
-    export(layout(fig, "Nota média dos dez gêneros com maior presença na amostra"), "generos_nota")
+    fig.update_layout(xaxis_title="Número de resenhas", yaxis_title="")
+    export(layout(fig, "Frequência dos cinco gêneros mais recorrentes"), "generos_frequencia")
 
 
 def main() -> None:
     cobertura()
+    sentimento_metodos()
     sentimento_por_nota()
     metodos()
     generos()

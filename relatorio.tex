@@ -6,23 +6,10 @@
 \usepackage{booktabs}
 \usepackage{graphicx}
 \usepackage{hyperref}
+\hypersetup{hidelinks}
 \usepackage{amsmath}
 \usepackage{url}
-
-\newcommand{\sitescreenshot}[3]{%
-\begin{figure}[!t]
-\centering
-\IfFileExists{#1}{%
-  \includegraphics[width=\columnwidth]{#1}%
-}{%
-  \fbox{\parbox[c][4.0cm][c]{0.92\columnwidth}{\centering
-  \textbf{Inserir captura de tela}\\[4pt]
-  Arquivo esperado: \texttt{\detokenize{#1}}}}%
-}
-\caption{#2}
-\label{#3}
-\end{figure}
-}
+\usepackage{placeins}
 
 \title{BookPulse: Análise Comportamental e Exploração de Sentimento em Resenhas de Livros}
 
@@ -43,25 +30,23 @@ Contagem, MG, Brasil\\
 
 \begin{abstract}
 Este trabalho apresenta o BookPulse, um pipeline reprodutível para analisar
-relações entre notas, texto, gêneros, popularidade e atividade de leitores em
-resenhas do Goodreads. Uma amostra de 10.000 resenhas foi enriquecida com
-metadados da Open Library e do Google Books, validada por critérios de
-identificadores, títulos, autores e anos, e reduzida a 8.033 resenhas
-associadas a livros com correspondência externa confiável. Os gêneros foram
-atribuídos pelo voto dos leitores nas estantes do Goodreads, e não pelas
-categorias de editora; as duas classificações concordam no gênero principal em
-apenas 49,7\% dos livros. A análise de sentimento compara um baseline lexical,
-o VADER e um transformer RoBERTa com acurácia publicada em resenhas. Nas 7.182
-resenhas em inglês, a probabilidade positiva do transformer tem associação
-moderada com a nota (Spearman $\rho=0{,}558$), muito acima do VADER
-($\rho=0{,}238$) e do léxico ($\rho=0{,}253$). Usando a nota como rótulo fraco,
-o transformer atinge acurácia balanceada de 0,910 em validação cruzada agrupada
-por usuário e livro, contra 0,772 de um TF-IDF treinado nos próprios dados. Uma
-validação humana preliminar, com 247 rótulos válidos de um anotador, obteve
-acurácia balanceada de 0,508 para VADER, 0,509 para o léxico e 0,318 para
-TF-IDF + regressão logística. Ainda não há segundo anotador ou consenso, logo
-não é possível reportar Cohen's kappa. O projeto inclui uma interface que liga
-livros, palavras características e títulos com perfis semelhantes.
+relações entre avaliações, textos, gêneros, popularidade e atividade de leitores
+em resenhas do Goodreads. Foram selecionadas 10.000 resenhas por amostragem
+reservoir sampling, com semente 42, e os livros foram enriquecidos com metadados
+da Open Library e do Google Books. Após a validação das correspondências,
+8.033 resenhas permaneceram na análise principal e 7.182 resenhas em inglês
+foram utilizadas na análise de sentimento. Os gêneros foram definidos
+prioritariamente pelos votos dos leitores nas estantes do Goodreads; essa
+classificação coincide com o gênero principal do catálogo em 49,7\% dos livros
+comparáveis. Foram avaliados um léxico explícito, o VADER e o transformer
+RoBERTa \texttt{siebert/sentiment-roberta-large-english}. A probabilidade
+positiva do transformer apresentou correlação de Spearman de 0,558 com a nota,
+frente a 0,238 para o VADER e 0,253 para o léxico. Na tarefa de classificação
+com rótulos fracos derivados das notas, o transformer obteve acurácia balanceada
+de 0,910 em validação cruzada agrupada por usuário e livro, enquanto o TF-IDF
+com regressão logística obteve 0,772. A validação humana independente de 600
+resenhas está em andamento. O projeto também disponibiliza uma interface para
+explorar perfis de livros, termos característicos e similaridades lexicais.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -92,6 +77,38 @@ catálogo; a comparação de três métodos de sentimento com validação cruzad
 agrupada; um protocolo e uma ferramenta de anotação humana; e o BookPulse, uma
 interface que visualiza palavras compartilhadas entre livros.
 
+\section{Descrição do problema}
+
+O problema investigado é a dificuldade de interpretar resenhas de livros
+utilizando apenas a nota numérica ou apenas o texto. Uma mesma avaliação pode
+conter elogios, críticas, ironia e sentimentos mistos, de modo que a nota não
+representa necessariamente a polaridade textual. Além disso, os metadados dos
+livros estão distribuídos em fontes distintas, cujas classificações de gênero
+podem divergir. Sem validar a associação entre resenhas e livros e sem explicitar
+a origem das categorias, análises posteriores podem combinar registros
+incorretos ou atribuir aos leitores classificações que vieram dos catálogos.
+
+Assim, o problema consiste em construir uma base rastreável e analisar, de
+forma exploratória, como as avaliações, o conteúdo textual, os gêneros e os
+indicadores de popularidade se relacionam, comparando métodos de sentimento e
+apresentando os resultados em uma interface de exploração. O estudo não busca
+inferir causalidade nem caracterizar individualmente os usuários.
+
+\section{Objetivos do trabalho}
+
+O objetivo geral é desenvolver o BookPulse como um pipeline reprodutível de
+preparação, enriquecimento, análise de sentimento e visualização de resenhas de
+livros do Goodreads.
+
+Como objetivos específicos, busca-se: (i) selecionar uma amostra reproduzível
+de resenhas; (ii) enriquecer os registros com metadados bibliográficos e validar
+as correspondências; (iii) tratar os textos e caracterizar as variáveis
+numéricas e categóricas; (iv) atribuir gêneros com base na participação dos
+leitores e comparar essa atribuição com os catálogos; (v) comparar métodos
+lexicais, baseados em regras e baseados em transformer; (vi) avaliar a predição
+de polaridade derivada das notas com validação cruzada agrupada; e (vii)
+disponibilizar uma interface que permita explorar os resultados por livro.
+
 As hipóteses operacionais são resumidas na Tabela~\ref{tab:hipoteses}. Elas
 delimitam o que pode ser testado com os dados e evitam interpretar a interface
 como evidência adicional independente.
@@ -106,7 +123,7 @@ como evidência adicional independente.
 \midrule
 H1 & Maior nota associa-se a linguagem mais positiva. & Spearman entre nota e escore\\
 H2 & O transformer acompanha melhor a nota que os baselines. & Correlação e CV agrupada\\
-H3 & Gêneros apresentam perfis descritivos distintos. & Médias e tamanhos por gênero\\
+H3 & Há gêneros com maior presença na amostra. & Contagem de resenhas por gênero\\
 H4 & Termos compartilhados permitem explorar obras relacionadas. & Grafo TF-IDF, sem validação causal\\
 \bottomrule
 \end{tabular}
@@ -129,12 +146,33 @@ concordância entre fontes. Apenas os estados \texttt{MUITO\_ALTO},
 \texttt{ALTO} e \texttt{MEDIO} foram utilizados na análise principal
 (Tabela~\ref{tab:cobertura}). A Fig.~\ref{fig:cobertura} explicita a redução
 de escopo, distinguindo a amostra inicial da base efetivamente analisada.
+\subsection{Natureza e tipos dos dados}
 
+A base combina dados estruturados e não estruturados. O texto da resenha é uma
+variável textual livre. As notas, contagens de palavras e frases, indicadores
+de votos e comentários e probabilidades produzidas pelos classificadores são
+variáveis quantitativas. Gênero, idioma, estado de confiança da correspondência
+e classe de sentimento são variáveis categóricas. Identificadores como
+\texttt{book\_id} e \texttt{user\_id}, além de ISBN, são utilizados para
+relacionamento e validação, e não como medidas numéricas. O ano de publicação
+é tratado como informação temporal de metadado.
+
+As variáveis categóricas foram tratadas por regras de domínio, filtragem,
+agrupamento e agregação, e não há indicação no material fornecido de que tenham
+sido convertidas por one-hot encoding ou outra codificação numérica. Para
+correspondência bibliográfica, foram mantidos somente os estados de confiança
+\texttt{MUITO\_ALTO}, \texttt{ALTO} e \texttt{MEDIO}. Para idioma, as resenhas
+não inglesas permaneceram na base geral, mas foram excluídas dos classificadores
+em inglês. Para a tarefa de predição, as notas 1 e 2 foram agrupadas como
+negativas, as notas 4 e 5 como positivas e as notas 3 foram excluídas, evitando
+forçar uma classe binária em avaliações intermediárias.
+
+\FloatBarrier
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figures/cobertura_pipeline.pdf}
 \caption{Redução da amostra nas etapas de validação e definição do escopo
-analítico. Reviews e livros permanecem ligados por identificadores ao longo do
+analítico. Resenhas e livros permanecem ligados por identificadores ao longo do
 pipeline.}
 \label{fig:cobertura}
 \end{figure}
@@ -147,16 +185,17 @@ pipeline.}
 \toprule
 \textbf{Indicador} & \textbf{Quantidade}\\
 \midrule
-Reviews na amostra & 10.000\\
+Resenhas na amostra & 10.000\\
 Livros únicos na amostra & 8.916\\
-Livros com match confiável & 7.031\\
-Reviews com match confiável & 8.033\\
-Reviews confiáveis em inglês & 7.182\\
+Livros com correspondência confiável & 7.031\\
+Resenhas com correspondência confiável & 8.033\\
+Resenhas confiáveis em inglês & 7.182\\
 Usuários na base final & 7.350\\
-Reviews com duplicata textual exata & 66\\
+Resenhas com duplicata textual exata & 66\\
 \bottomrule
 \end{tabular}
 \end{table}
+
 
 O filtro de confiança introduz viés de seleção (Tabela~\ref{tab:selecao}): os
 livros mantidos são muito mais populares e as resenhas descartadas têm nota
@@ -164,8 +203,9 @@ média ligeiramente maior, possivelmente porque títulos de nicho são mais
 difíceis de localizar nos catálogos. Os resultados valem, portanto, para livros
 com metadados externos confiáveis, com tendência a títulos populares.
 
+\FloatBarrier
 \begin{table}[!t]
-\caption{Resenhas mantidas e descartadas pelo filtro de match}
+\caption{Resenhas mantidas e descartadas pelo filtro de correspondência}
 \label{tab:selecao}
 \centering
 \begin{tabular}{lrr}
@@ -182,9 +222,46 @@ Palavras por resenha (mediana) & 60 & 70\\
 
 \section{Metodologia}
 
+\subsection{Extração e integração dos dados}
+
+A fonte principal é o UCSD Book Graph, que reúne resenhas e metadados de livros.
+A extração da amostra foi realizada por \textit{reservoir sampling} em uma
+passagem pelo conjunto de resenhas, com semente fixa 42, resultando em 10.000
+registros. Essa estratégia permite selecionar uma amostra sem carregar todo o
+conjunto em memória e torna a seleção reproduzível quando a ordem de entrada e
+a implementação são mantidas. O enriquecimento bibliográfico ocorreu por
+\textit{book\_id}: primeiro foram priorizados ISBN-13 e ISBN-10 na Open Library;
+quando necessário, foram realizadas buscas por título e autor. O Google Books
+foi consultado como fonte independente para complementar e confrontar os
+metadados. O processo de extração não é descrito no material recebido em termos
+de formato de transporte, paginação de API ou versão de cada catálogo; por
+isso, esses detalhes não são presumidos neste relatório.
+
+\subsection{Ferramentas utilizadas}
+
+O processamento, a limpeza, o enriquecimento e a inferência são descritos como
+implementados em scripts Python. Para análise de sentimento foram utilizados
+um léxico próprio em inglês, o VADER e o modelo pré-treinado
+\texttt{siebert/sentiment-roberta-large-english}. A predição por texto utiliza
+TF-IDF com unigramas e bigramas e regressão logística balanceada, com suporte
+do \textit{scikit-learn}. A tradução de apoio à anotação foi executada
+localmente com OPUS-MT. As fontes externas de metadados foram Open Library e
+Google Books. A interface web consome o arquivo agregado
+\texttt{data/books.json} e inclui páginas de busca, perfil de livro, grafo
+lexical e anotação.
+
+Para as figuras estáticas desta versão do relatório, os gráficos foram
+elaborados com Matplotlib a partir dos valores numéricos já reportados no
+projeto. O material fornecido descreve a interface interativa, mas não identifica
+a biblioteca específica usada nela para desenhar gráficos ou o grafo. Também
+não informa quais bibliotecas haviam sido previstas inicialmente; portanto,
+não é possível afirmar que houve substituição de biblioteca nem atribuir um
+motivo para uma eventual mudança. Essa identificação deve ser conferida no
+código do repositório antes da entrega definitiva.
+
 \subsection{Preparação e gêneros pelo voto dos leitores}
 
-Duplicatas de reviews e livros foram removidas, números e datas foram
+Duplicatas de resenhas e livros foram removidas, números e datas foram
 normalizados e o texto original foi preservado. O idioma de cada resenha foi
 detectado; as 851 resenhas fora do inglês foram mantidas na base, mas excluídas
 das etapas de sentimento, cujos métodos são para inglês.
@@ -229,7 +306,7 @@ pré-treinada. Assim, a comparação avalia o compromisso entre
 interpretabilidade, cobertura e capacidade de capturar contexto. As
 probabilidades do transformer são usadas como escore contínuo para associação
 com a nota, enquanto o rótulo binário é usado somente nas métricas de
-classificação. Reviews fora do inglês não são traduzidas antes da classificação,
+classificação. Resenhas fora do inglês não são traduzidas antes da classificação,
 evitando confundir o desempenho do tradutor com o do classificador.
 
 \subsection{Predição de nota com rótulo fraco}
@@ -255,17 +332,15 @@ tratadas como independentes.
 
 A concordância com a nota não valida o sentimento, pois a nota não é a
 polaridade do texto. Foi gerada uma amostra estratificada por nota e tamanho de
-600 resenhas em inglês, apresentada sem a nota original. A ferramenta permite
-classificar cada resenha como positiva, negativa, neutra, mista ou incerta,
-com tradução automática para o português como apoio, produzida localmente pelo
-OPUS-MT~\cite{opusmt}; o julgamento é feito sobre o texto original. Até o
-momento, um anotador exportou 262 registros, dos quais 247 têm rótulo válido:
-172 positivos, 53 neutros e 22 negativos. Nessa amostra, VADER obteve
-acurácia balanceada de 0,508, o léxico 0,509 e TF-IDF + regressão logística
-0,318. Esses números são uma avaliação preliminar contra um único anotador,
-não um consenso. A segunda anotação independente ainda é necessária para
-calcular concordância e Cohen's kappa, além de treinar o modelo final contra
-rótulos reconciliados.
+600 resenhas em inglês, apresentada sem a nota original. Os anotadores usam uma
+interface em que cada resenha é um cartão (positiva, negativa, neutra, mista ou
+incerta), com tradução automática para o português como apoio, produzida
+localmente pelo OPUS-MT~\cite{opusmt}; o julgamento é feito sobre o texto
+original. Os dois autores anotam as mesmas resenhas de forma independente, e as
+classificações são gravadas numa planilha compartilhada. Estão previstas a
+concordância entre anotadores (Cohen's kappa), as métricas de cada método
+contra os rótulos de consenso e um TF-IDF treinado com esses rótulos em split
+agrupado.
 
 \subsection{Critério de interpretação e validade}
 
@@ -273,8 +348,8 @@ O desenho analítico é observacional e exploratório. A unidade primária é a
 resenha, mas várias medidas são agregadas por livro, usuário ou gênero; por
 isso, uma correlação simples não deve ser interpretada como efeito individual.
 Para reduzir interpretações excessivas, cada resultado é acompanhado de seu
-universo de cálculo: reviews confiáveis para cobertura, reviews em inglês para
-sentimento, e reviews com nota 1--2 ou 4--5 para a tarefa de predição. Reviews
+universo de cálculo: resenhas confiáveis para cobertura, resenhas em inglês para
+sentimento, e resenhas com nota 1--2 ou 4--5 para a tarefa de predição. Reviews
 com nota 3 não são forçadas a uma polaridade binária.
 
 As variáveis textuais também possuem papéis distintos. Contagem de palavras e
@@ -336,23 +411,12 @@ selecionado, permitindo compartilhar uma análise específica e recuperar o
 estado pelo histórico do navegador. Os controles ``Início'' e ``Voltar''
 separam a exploração global da análise de uma obra.
 
-\sitescreenshot{figures/site_home.png}
-{Página inicial do BookPulse. A tela apresenta a busca, livros em destaque e o
-acesso à anotação humana; ela resume a entrada do usuário no projeto.}
-{fig:site-home}
-
 Na página de um livro, os dados são organizados em camadas de leitura. O
 cabeçalho apresenta a capa, autor, gêneros, quantidade de resenhas, nota média
 e extensão textual. Em seguida, a proporção de sentimento, o vocabulário
 característico, a distribuição de notas e os excertos de resenhas permitem
 comparar a medida numérica com evidências textuais. O aviso para livros com
 poucas resenhas torna explícita a incerteza de perfis individuais.
-
-\sitescreenshot{figures/site_livro.png}
-{Página de livro com capa, indicadores agregados, distribuição de avaliações e
-resenhas em destaque. A captura deve mostrar como as medidas do pipeline são
-apresentadas em conjunto.}
-{fig:site-livro}
 
 O grafo é a síntese visual da representação TF-IDF. O livro selecionado ocupa
 o centro; as palavras mais características formam o primeiro anel; e títulos
@@ -363,11 +427,6 @@ poluir o espaço principal. Essa visualização deve ser interpretada como
 similaridade lexical exploratória, não como distância semântica validada nem
 como recomendação causal.
 
-\sitescreenshot{figures/site_grafo.png}
-{Grafo interativo de um livro. A captura deve registrar o livro central, os
-termos compartilhados, as capas relacionadas e um tooltip aberto sobre um nó.}
-{fig:site-grafo}
-
 Por fim, a ferramenta \texttt{anotar.html} fecha o ciclo metodológico. Ela
 oculta a nota original, apresenta o texto da resenha e permite marcar
 polaridade positiva, negativa, neutra, mista ou incerta. A tradução automática
@@ -375,24 +434,37 @@ polaridade positiva, negativa, neutra, mista ou incerta. A tradução automátic
 exportadas e comparadas com o transformer, o VADER e o léxico por meio de
 concordância entre anotadores e métricas por classe.
 
-\sitescreenshot{figures/site_anotacao.png}
-{Ferramenta de anotação humana. A captura deve mostrar o cartão de resenha, as
-opções de julgamento e o indicador de progresso, sem expor a nota Goodreads.}
-{fig:site-anotacao}
-
-Essas telas não são um produto separado da análise: constituem uma projeção
-interativa das mesmas decisões metodológicas. A home comunica o escopo, a
+As diferentes páginas não constituem um produto separado da análise: constituem uma projeção
+interativa das mesmas decisões metodológicas. A página inicial comunica o escopo, a
 página de livro comunica as estatísticas agregadas, o grafo comunica a
 representação lexical e a anotação humana comunica a etapa de validação. Em
 conjunto, o site permite acompanhar o caminho entre dado bruto, evidência
 quantitativa, interpretação textual e limitação experimental.
 
+\subsection{Repositório e organização dos artefatos}
+
+O material do projeto descreve uma organização que separa o processamento dos
+dados e a apresentação no navegador. Os scripts Python executam a limpeza,
+o enriquecimento bibliográfico, a inferência de sentimento e a validação; o
+arquivo \texttt{data/books.json} contém os dados agregados consumidos pela
+interface; e as páginas web implementam a busca, a visualização de cada livro,
+o grafo de termos e a ferramenta \texttt{anotar.html}. A planilha compartilhada
+é utilizada para registrar as anotações humanas independentes. A semente 42 da
+amostragem e os critérios de correspondência e filtragem compõem as decisões
+necessárias para reproduzir a base analítica.
+
+O endereço eletrônico, a plataforma de hospedagem, a licença e a identificação
+da versão (tag ou commit) do repositório não aparecem nos arquivos recebidos.
+Para cumprir integralmente a identificação solicitada, deve ser inserido aqui
+o endereço efetivo do repositório: \texttt{https://github.com/Jottynha/Book-Pulse}. Não se
+atribui um endereço ou serviço de hospedagem sem confirmação documental.
+
 \section{Resultados}
 
 \subsection{Perfil da base e gêneros}
 
-A base final contém 8.033 reviews, 7.031 livros e 7.350 usuários. Entre as
-7.753 reviews com nota válida, a média foi 3,87, com mediana 4. Pelo voto dos
+A base final contém 8.033 resenhas, 7.031 livros e 7.350 usuários. Entre as
+7.753 resenhas com nota válida, a média foi 3,87, com mediana 4. Pelo voto dos
 leitores, os gêneros principais mais frequentes por número de resenhas foram
 fantasy (1.212), young adult (1.045), romance (955), mystery (760) e historical
 fiction (658).
@@ -407,9 +479,9 @@ de 326 para 576.
 
 \begin{figure}[!t]
 \centering
-\includegraphics[width=\columnwidth]{figures/generos_nota.pdf}
-\caption{Nota média dos dez gêneros com maior presença na amostra. A ordem é
-apenas descritiva e não implica efeito causal do gênero sobre a nota.}
+\includegraphics[width=\columnwidth]{figures/generos_frequencia.pdf}
+\caption{Frequência de resenhas nos cinco gêneros principais mais recorrentes,
+segundo a atribuição baseada nos votos dos leitores.}
 \label{fig:generos}
 \end{figure}
 
@@ -417,16 +489,19 @@ apenas descritiva e não implica efeito causal do gênero sobre a nota.}
 
 Nas 7.182 resenhas em inglês, o transformer classifica 80,9\% como positivas e
 19,1\% como negativas; o VADER, 80,0\% positivas, 5,0\% neutras e 15,0\%
-negativas. A Fig.~\ref{fig:negativas} mostra a fração de resenhas classificadas
-como negativas em cada nota. O transformer separa as notas com clareza (95,9\%
-de negativas na nota 1 e 2,0\% na nota 5); o VADER classifica apenas 54,4\% das
-resenhas de nota 1 como negativas, e o léxico, 26,3\%.
+negativas. A Fig.~\ref{fig:sentimento} compara as proporções globais dos
+métodos. Em uma análise estratificada por nota, o transformer classifica como
+negativas 95,9\% das resenhas de nota 1 e 2,0\% das resenhas de nota 5; para a
+nota 1, os valores correspondentes são 54,4\% no VADER e 26,3\% no léxico.
+Essas curvas são apresentadas na Fig.~\ref{fig:negativas}.
 
 \begin{figure}[!t]
 \centering
-\includegraphics[width=\columnwidth]{figures/negativas_por_nota.pdf}
-\caption{Resenhas em inglês classificadas como negativas, por nota e método.}
-\label{fig:negativas}
+\includegraphics[width=\columnwidth]{figures/sentimento_metodos.pdf}
+\caption{Distribuição percentual das classes de sentimento para transformer,
+VADER e léxico nas 7.182 resenhas em inglês. O transformer é binário e, por
+isso, não apresenta parcela neutra.}
+\label{fig:sentimento}
 \end{figure}
 
 A probabilidade positiva do transformer tem correlação de Spearman
@@ -434,8 +509,17 @@ $\rho=0{,}558$ com a nota (Pearson $r=0{,}624$), contra $\rho=0{,}238$ do
 compound do VADER e $\rho=0{,}253$ do score lexical. O tamanho da resenha tem
 associação desprezível com a nota (Spearman $\rho=-0{,}015$). Votos e
 comentários também apresentaram associações pequenas. A diferença entre as
-curvas da Fig.~\ref{fig:negativas} mostra por que um único limiar lexical não
-é suficiente para interpretar crítica, ironia ou contexto.
+curvas das Figs.~\ref{fig:sentimento} e~\ref{fig:negativas} mostra por que um
+único limiar lexical não é suficiente para interpretar crítica, ironia ou
+contexto.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/negativas_por_nota.pdf}
+\caption{Proporção de resenhas classificadas como negativas em cada nota
+Goodreads, para os três métodos disponíveis.}
+\label{fig:negativas}
+\end{figure}
 
 \subsection{Predição de nota}
 
@@ -451,13 +535,17 @@ interpretáveis: \textit{not}, \textit{didn't}, \textit{boring} e
 \textit{enjoyed} e \textit{amazing} para a positiva.
 Esse contraste é visualizado na Fig.~\ref{fig:metodos}: além da acurácia
 balanceada, o F1 negativo evidencia a maior dificuldade dos métodos simples
-com a classe minoritária.
+com a classe minoritária. O transformer apresenta os maiores valores nas duas
+métricas (0,910 e 0,822), enquanto o VADER e o léxico ficam abaixo do TF-IDF.
+A diferença é particularmente relevante no F1 negativo, que evidencia a
+capacidade de reconhecer a classe minoritária. As barras de erro representam
+os desvios-padrão entre as cinco dobras.
 
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figures/comparacao_metodos.pdf}
-\caption{Desempenho médio dos métodos nas cinco dobras agrupadas; as barras de
-erro representam o desvio-padrão entre dobras.}
+\caption{Acurácia balanceada e F1 negativo dos métodos nas cinco dobras
+agrupadas, conforme os valores reportados na Tabela~\ref{tab:predicao}.}
 \label{fig:metodos}
 \end{figure}
 
@@ -499,9 +587,7 @@ conclusões causais sobre votos, comentários, popularidade ou sentimento.
 
 A concordância com a nota é um rótulo fraco: mostra que o transformer acompanha
 a avaliação numérica, e não que acerta a polaridade de cada texto; a anotação
-humana preliminar já oferece uma primeira verificação, mas a ausência de um
-segundo anotador ainda impede medir concordância e consenso. O transformer é
-binário e não
+humana em andamento é o que fecha essa lacuna. O transformer é binário e não
 representa resenhas neutras ou mistas. A amostra é pequena diante da população
 original, os matches externos favorecem livros populares, e 92\% dos livros
 têm uma única resenha, o que limita os perfis por livro. As estantes do
@@ -516,7 +602,7 @@ participantes; e (vi) modularizar o LaTeX em arquivos por seção. A última
 atividade é uma melhoria de manutenção, não altera os resultados desta
 versão, que permanece compilável como um único arquivo.
 
-\section{Conclusão}
+\section{Conclusão e considerações finais}
 
 O BookPulse entrega um pipeline coeso entre amostragem, enriquecimento,
 validação, análise textual e visualização. Os gêneros passam a refletir o voto
